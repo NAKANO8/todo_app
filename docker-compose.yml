@@ -1,15 +1,37 @@
 services:
+  api:
+    build: ./todo-api
+    volumes:
+      - ./todo-api:/app
+    working_dir: /app
+    command: npm run dev
+    ports:
+      - "3001:3001"
+    env_file:
+      - ./todo-api/.env
+    depends_on:
+      - db
+
+  web:
+    build: ./todo-web
+    volumes:
+      - ./todo-web:/app
+    working_dir: /app
+    command: npm run dev
+    ports:
+      - "3000:3000"
+    depends_on:
+      - api
+
   db:
     image: mysql:8.0
-    container_name: todo-mysql
-    restart: always
     env_file:
-      - .env
+      - ./todo-api/.env
     ports:
       - "3306:3306"
     volumes:
-      - mysql_data:/var/lib/mysql
+      - db-data:/var/lib/mysql
 
 volumes:
-  mysql_data:
+  db-data:
 
