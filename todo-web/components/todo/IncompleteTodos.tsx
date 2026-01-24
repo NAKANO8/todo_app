@@ -2,7 +2,7 @@ import styles from '../TodoApp.module.css';
 import type { Todo } from '@/lib/types';
 
 type InCompleteTodoProps = {
-  todos: Todo,
+  todos: Todo[],
   onClickComplete: (id: number) => void,
   onClickDelete: (id: number) => void,
 }

@@ -1,25 +1,29 @@
 services:
   api:
-    build: ./todo-api
-    volumes:
-      - ./todo-api:/app
+    image: node:22
     working_dir: /app
-    command: pnpm run dev
+    command: sh -c "corepack enable && pnpm install --no-frozen-lockfile && pnpm run dev"
+    environment:
+      - CI=true
     ports:
       - "3001:3001"
+    volumes:
+      - ./todo-api:/app
     env_file:
       - ./todo-api/.env
     depends_on:
       - db
 
   web:
-    build: ./todo-web
-    volumes:
-      - ./todo-web:/app
+    image: node:22
     working_dir: /app
-    command: pnpm run dev
+    command: sh -c "corepack enable && pnpm install --no-frozen-lockfile && pnpm run dev"
+    environment:
+      - CI=true
     ports:
       - "3000:3000"
+    volumes:
+      - ./todo-web:/app
     depends_on:
       - api
 

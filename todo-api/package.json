@@ -5,7 +5,7 @@
   "main": "index.js",
   "scripts": {
     "test": "vitest",
-    "dev": "nodemon --watch src --ext ts --exec ts-node src/server.ts",
+    "dev": "ts-node src/server.ts",
     "build": "tsc",
     "start": "node dist/server.ts"
   },
@@ -13,13 +13,13 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "@fastify/cors": "^11.2.0",
     "dotenv": "^17.2.3",
     "fastify": "^5.7.1",
     "mysql2": "^3.16.1"
   },
   "devDependencies": {
     "@types/node": "^25.0.9",
-    "nodemon": "^3.1.11",
     "ts-node": "^10.9.2",
     "typescript": "^5.9.3",
     "vitest": "^4.0.17"
