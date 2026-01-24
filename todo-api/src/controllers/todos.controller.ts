@@ -8,7 +8,10 @@ export const TodoController = {
     reply.send(todos);
   },
 
-  async getById(req: FastifyRequest<{ Params: { id: string } }>, reply: FastifyReply) {
+  async getById(
+    req: FastifyRequest<{ Params: { id: string } }>,
+    reply: FastifyReply
+  ) {
     try {
       const todo = await TodoService.getById(Number(req.params.id));
       reply.send(todo);
@@ -17,17 +20,23 @@ export const TodoController = {
     }
   },
 
-  async create(req: FastifyRequest<{ Body: { content: string } }>, reply: FastifyReply) {
+  async create(
+    req: FastifyRequest<{ Body: { title: string } }>,
+    reply: FastifyReply
+  ) {
     try {
-      await TodoService.create(req.body.content);
+      await TodoService.create(req.body.title);
       reply.code(201).send({ message: "created" });
     } catch {
-      reply.code(400).send({ message: "invalid content" });
+      reply.code(400).send({ message: "invalid title" });
     }
   },
 
   async update(
-    req: FastifyRequest<{ Params: { id: string }, Body: { content?: string; status?: number } }>,
+    req: FastifyRequest<{
+      Params: { id: string };
+      Body: { title?: string; status?: number };
+    }>,
     reply: FastifyReply
   ) {
     try {
@@ -38,7 +47,10 @@ export const TodoController = {
     }
   },
 
-  async delete(req: FastifyRequest<{ Params: { id: string } }>, reply: FastifyReply) {
+  async delete(
+    req: FastifyRequest<{ Params: { id: string } }>,
+    reply: FastifyReply
+  ) {
     try {
       await TodoService.delete(Number(req.params.id));
       reply.send({ message: "deleted" });

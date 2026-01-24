@@ -1,10 +1,6 @@
-import { describe, it, expect, beforeAll, afterAll, beforeEach } from "vitest";
+import { describe, it, expect, afterAll, beforeEach } from "vitest";
 import { pool } from "../../db/client";
 import { TodoRepository } from "../todos.repository";
-
-beforeAll(async () => {
-  await pool.query("DELETE FROM todos");
-});
 
 beforeEach(async () => {
   await pool.query("DELETE FROM todos");
@@ -20,7 +16,7 @@ describe("TodoRepository", () => {
 
     const todos = await TodoRepository.findAll();
     expect(todos.length).toBe(1);
-    expect(todos[0].content).toBe("repo test");
+    expect(todos[0].title).toBe("repo test");
   });
 
   it("findById", async () => {
@@ -29,17 +25,17 @@ describe("TodoRepository", () => {
     const todos = await TodoRepository.findAll();
     const todo = await TodoRepository.findById(todos[0].id);
 
-    expect(todo?.content).toBe("find me");
+    expect(todo?.title).toBe("find me");
   });
 
   it("update", async () => {
     await TodoRepository.create("old", 0);
     const [todo] = await TodoRepository.findAll();
 
-    await TodoRepository.update(todo.id, { content: "new" });
+    await TodoRepository.update(todo.id, { title: "new" });
     const updated = await TodoRepository.findById(todo.id);
 
-    expect(updated?.content).toBe("new");
+    expect(updated?.title).toBe("new");
   });
 
   it("delete", async () => {

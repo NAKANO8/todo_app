@@ -19,7 +19,7 @@ describe("Todos API", () => {
     const res = await app.inject({
       method: "POST",
       url: "/todos",
-      payload: { content: "api test" },
+      payload: { title: "api test" },
     });
 
     expect(res.statusCode).toBe(201);
@@ -29,7 +29,7 @@ describe("Todos API", () => {
     await app.inject({
       method: "POST",
       url: "/todos",
-      payload: { content: "api test" },
+      payload: { title: "api test" },
     });
 
     const res = await app.inject({
@@ -39,14 +39,15 @@ describe("Todos API", () => {
 
     const data = res.json();
     expect(data.length).toBe(1);
-    expect(data[0].content).toBe("api test");
+    expect(data[0].title).toBe("api test");
+    expect(data[0].status).toBe(0);
   });
 
   it("PATCH /todos/:id", async () => {
     await app.inject({
       method: "POST",
       url: "/todos",
-      payload: { content: "old" },
+      payload: { title: "old" },
     });
 
     const list = await app.inject({ method: "GET", url: "/todos" });
@@ -55,7 +56,7 @@ describe("Todos API", () => {
     const res = await app.inject({
       method: "PATCH",
       url: `/todos/${id}`,
-      payload: { status: 2 },
+      payload: { status: 1 },
     });
 
     expect(res.statusCode).toBe(200);
@@ -65,7 +66,7 @@ describe("Todos API", () => {
     await app.inject({
       method: "POST",
       url: "/todos",
-      payload: { content: "delete" },
+      payload: { title: "delete" },
     });
 
     const list = await app.inject({ method: "GET", url: "/todos" });

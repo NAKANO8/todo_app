@@ -16,27 +16,32 @@ export const TodoRepository = {
     return (rows as Todo[])[0] ?? null;
   },
 
-  async create(content: string, status: number) {
+  async create(title: string, status: number = 0) {
     await pool.query(
-      `INSERT INTO todos (content, status, created_at, updated_at)
+      `INSERT INTO todos (title, status, created_at, updated_at)
        VALUES (?, ?, NOW(), NOW())`,
-      [content, status]
+      [title, status]
     );
   },
 
-  async update(id: number, data: Partial<Pick<Todo, "content" | "status">>) {
-    const fields = [];
-    const values = [];
+  async update(
+    id: number,
+    data: Partial<Pick<Todo, "title" | "status">>
+  ) {
+    const fields: string[] = [];
+    const values: any[] = [];
 
-    if (data.content !== undefined) {
-      fields.push("content = ?");
-      values.push(data.content);
+    if (data.title !== undefined) {
+      fields.push("title = ?");
+      values.push(data.title);
     }
 
     if (data.status !== undefined) {
       fields.push("status = ?");
       values.push(data.status);
     }
+
+    if (fields.length === 0) return;
 
     values.push(id);
 
