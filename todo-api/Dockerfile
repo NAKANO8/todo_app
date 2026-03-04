@@ -14,5 +14,7 @@ RUN pnpm install
 # 残りのソースをコピー
 COPY . .
 
-CMD ["pnpm", "run", "dev"]
+RUN pnpm build
+
+CMD ["pnpm", "run", "start"]
 
