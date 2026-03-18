@@ -15,6 +15,8 @@ RUN pnpm install --frozen-lockfile
 # 残りのソースをコピー
 COPY todo-web ./todo-web
 
+WORKDIR /app/todo-web
+
 ENV NODE_ENV=production
 
 RUN pnpm build

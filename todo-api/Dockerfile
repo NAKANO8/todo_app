@@ -6,13 +6,18 @@ WORKDIR /app
 RUN corepack enable
 
 # 依存関係ファイルだけ先にコピー（Dockerキャッシュ効かせる）
-COPY package.json pnpm-lock.yaml ./
+COPY pnpm-lock.yaml pnpm-workspace.yaml package.json ./
+COPY todo-api/package.json ./todo-api/package.json
 
 # pnpm で install
-RUN pnpm install
+RUN pnpm install --frozen-lockfile
 
 # 残りのソースをコピー
-COPY . .
+COPY todo-api ./todo-api
+
+WORKDIR /app/todo-api
+
+ENV NODE_ENV=production
 
 RUN pnpm build
 
