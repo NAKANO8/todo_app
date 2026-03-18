@@ -1,0 +1,10 @@
+services:
+  api:
+    command: pnpm run start
+    env_file:
+      - ./todo-api/.env.prod
+    restart: always
+
+  web:
+    command: pnpm run start
+    restart: always
