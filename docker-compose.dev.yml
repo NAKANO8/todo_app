@@ -1,0 +1,18 @@
+services:
+  api:
+    command: pnpm run dev
+    ports:
+      - "3001:3001"
+    volumes:
+      - ./todo-api:/app/todo-api
+      - /app/node_modules
+    env_file:
+      - ./todo-api/.env.dev
+
+  web:
+    command: pnpm run dev
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./todo-web:/app/todo-web
+      - /app/node_modules
