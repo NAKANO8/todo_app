@@ -1,38 +1,20 @@
 services:
   api:
-    image: node:22
-    working_dir: /app
-    command: sh -c "corepack enable && pnpm install --no-frozen-lockfile && pnpm run dev"
-    environment:
-      - CI=true
-    ports:
-      - "3001:3001"
-    volumes:
-      - ./todo-api:/app
-    env_file:
-      - ./todo-api/.env
+    build: 
+      context: .
+      dockerfile: ./todo-api/Dockerfile
     depends_on:
       - db
 
   web:
-    image: node:22
-    working_dir: /app
-    command: sh -c "corepack enable && pnpm install --no-frozen-lockfile && pnpm run dev"
-    environment:
-      - CI=true
-    ports:
-      - "3000:3000"
-    volumes:
-      - ./todo-web:/app
+    build: 
+      context: .
+      dockerfile: ./todo-web/Dockerfile
     depends_on:
       - api
 
   db:
     image: mysql:8.0
-    env_file:
-      - ./todo-api/.env
-    ports:
-      - "3306:3306"
     volumes:
       - db-data:/var/lib/mysql
       - ./mysql/init.sql:/docker-entrypoint-initdb.d/init.sql
