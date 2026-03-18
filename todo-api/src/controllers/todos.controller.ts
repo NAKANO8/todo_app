@@ -1,6 +1,8 @@
 // controllers/todos.controller.ts
 import { FastifyRequest, FastifyReply } from "fastify";
 import { TodoService } from "../services/todos.service";
+import { todoSchema } from "@shared/todo";
+import { sanitize } from "../lib/sanitize";
 
 export const TodoController = {
   async getAll(_: FastifyRequest, reply: FastifyReply) {
