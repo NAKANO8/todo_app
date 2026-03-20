@@ -1,4 +1,2 @@
 packages:
-  - "todo-web"
-  - "todo-api"
-  - "shared"
+  - "packages/*"

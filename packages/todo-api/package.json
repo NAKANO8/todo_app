@@ -17,7 +17,8 @@
     "dotenv": "^17.2.3",
     "fastify": "^5.7.1",
     "mysql2": "^3.16.1",
-    "xss": "^1.0.15"
+    "xss": "^1.0.15",
+    "@my/shared": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "^25.0.9",

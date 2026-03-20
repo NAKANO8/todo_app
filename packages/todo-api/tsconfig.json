@@ -10,10 +10,10 @@
     "moduleResolution": "node",
 
     "types": ["node"],
-    "skipLibCheck": true
+    "skipLibCheck": true,
     "baseUrl": ".",
     "paths": {
-      "@shared/*": ["../shared/*"]
+      "@my/shared/*": ["../shared/*"]
     }
   }
 }
