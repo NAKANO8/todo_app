@@ -6,6 +6,8 @@ settings:
 
 importers:
 
+  .: {}
+
   todo-api:
     dependencies:
       '@fastify/cors':
