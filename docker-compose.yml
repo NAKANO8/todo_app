@@ -18,6 +18,8 @@ services:
     volumes:
       - db-data:/var/lib/mysql
       - ./mysql/init.sql:/docker-entrypoint-initdb.d/init.sql
+    env_file:
+      - ./todo-api/.env.dev
 
 volumes:
   db-data:
