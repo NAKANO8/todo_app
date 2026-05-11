@@ -8,9 +8,10 @@
     "dev": "pnpm -r run dev",
     "build": "pnpm -r run build",
     "start": "pnpm -r run start",
-    "docker:dev": "docker compose -f docker-compose.yml -f docker-compose.dev.yml up --build",
-    "docker:dev-skip": "docker compose -f docker-compose.yml -f docker-compose.dev.yml up",
-    "docker:prod": "docker compose -f docker-compose.yml -f docker-compose.prod.yml up --build",
+    "docker:dev-init": "docker compose -f docker-compose.yml -f docker-compose.dev.yml up --build",
+    "docker:dev": "docker compose -f docker-compose.yml -f docker-compose.dev.yml up",
+    // prodはまだ動かなそう。TODO: 環境変数を変更する
+    "docker:prod-init": "docker compose -f docker-compose.yml -f docker-compose.prod.yml up --build",
     "docker:down": "docker compose down"
   },
   "keywords": [],
