@@ -1,4 +1,7 @@
 packages:
   - "todo-web"
   - "todo-api"
-
+allowBuilds:
+  esbuild: false
+  sharp: false
+  unrs-resolver: false

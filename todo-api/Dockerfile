@@ -1,5 +1,7 @@
 FROM node:22
 
+ENV CI = true
+
 WORKDIR /app
 
 # pnpm を有効化（Node 16+ 推奨の正規ルート）
@@ -10,7 +12,7 @@ COPY pnpm-lock.yaml pnpm-workspace.yaml package.json ./
 COPY todo-api/package.json ./todo-api/package.json
 
 # pnpm で install
-RUN pnpm install --frozen-lockfile
+RUN pnpm install
 
 # 残りのソースをコピー
 COPY todo-api ./todo-api
