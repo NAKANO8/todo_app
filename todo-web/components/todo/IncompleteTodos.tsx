@@ -1,4 +1,4 @@
-import styles from '../TodoApp.module.css';
+import styles from '../../features/todo/TodoApp.module.css';
 import type { Todo } from '@/lib/types';
 
 type InCompleteTodoProps = {

@@ -3,9 +3,9 @@
 import { useEffect, useState } from "react";
 import { toast } from "react-toastify";
 
-import { InputTodo } from "./todo/InputTodo";
-import { IncompleteTodos } from "./todo/IncompleteTodos";
-import { CompleteTodos } from "./todo/CompleteTodos";
+import { InputTodo } from "../../components/todo/InputTodo";
+import { IncompleteTodos } from "../../components/todo/IncompleteTodos";
+import { CompleteTodos } from "../../components/todo/CompleteTodos";
 
 import type { Todo } from "@/lib/types";
 import { fetchTodos, createTodo, updateTodo, deleteTodo } from "@/lib/api/todos";
