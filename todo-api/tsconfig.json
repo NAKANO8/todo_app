@@ -10,7 +10,11 @@
     "moduleResolution": "node",
 
     "types": ["node"],
-    "skipLibCheck": true
-  }
+    "skipLibCheck": true,
+  },
+  "exclude": [
+    "**/*.test.ts",
+    "**/_test_/**"
+  ],
 }
 
