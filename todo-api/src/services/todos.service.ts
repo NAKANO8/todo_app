@@ -20,7 +20,7 @@ export const TodoService = {
   },
 
   async update(id: number, data: { content?: string; status?: number }) {
-    await this.getById(id); // 存在確認
+    await this.getById(id);
     await TodoRepository.update(id, data);
   },
 
