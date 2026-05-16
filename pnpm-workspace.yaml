@@ -2,6 +2,7 @@ packages:
   - "todo-web"
   - "todo-api"
 allowBuilds:
+  bcrypt: false
   esbuild: false
   sharp: false
   unrs-resolver: false

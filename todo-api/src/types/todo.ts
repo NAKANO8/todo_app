@@ -6,3 +6,7 @@ export type Todo = {
   updated_at: string;
 };
 
+export type LoginBody = {
+  email: string;
+  password: string;
+};
