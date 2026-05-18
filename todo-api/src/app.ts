@@ -5,7 +5,16 @@ import cookie from "@fastify/cookie";
 import session from "@fastify/session";
 import { todoRoutes } from "./routes/todos.route";
 
-export const app = Fastify();
+export const app = Fastify({
+  logger: true,
+});
+
+declare module '@fastify/session' {
+  interface FastifySessionObject {
+    authenticated?: boolean;
+    userId?: number;
+  }
+}
 
 export async function buildApp() {
   await app.register(cors, {
@@ -17,7 +26,7 @@ export async function buildApp() {
   await app.register(cookie);
 
   await app.register(session, {
-    secret: "super-secret",
+    secret: process.env.SESSION_SECRET!,
     cookie: {
       secure: false,
     },
@@ -27,4 +36,3 @@ export async function buildApp() {
 
   return app;
 }
-

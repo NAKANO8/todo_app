@@ -1,5 +1,5 @@
 'use client'
-import { useState } from "react";
+import React, { useState } from "react";
 import { validateEmail, validatePassword } from "../../lib/validation";
 
 export default function LoginForm() {
@@ -7,7 +7,7 @@ export default function LoginForm() {
   const [password, setPassword] = useState("");
   const [errors, setErrors] = useState<{ email?: string; password?: string }>({});
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = (e: React.SubmitEvent<HTMLFormElement>) => {
     e.preventDefault()
 
     const emailError = validateEmail(email);

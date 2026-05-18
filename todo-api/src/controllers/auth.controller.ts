@@ -1,25 +1,23 @@
 import { FastifyRequest, FastifyReply } from "fastify";
 import { LoginBody } from "../types/todo"; 
+import { AuthService } from "../services/auth.service";
 
 export const AuthController = {
   async login(
     req: FastifyRequest<{ Body: LoginBody }>,
     reply: FastifyReply
   ) {
-    const { email, password } = req.body;
-
-    if (password === "abcdef") {
-      req.session.authenticated = true;
-      req.session.userId = users.id;
-
+    try {
+      const user = await AuthService.login(req.body);
+      req.session.userId = user.id;
       return reply.send({
-        message: "login success",
+        message: 'login success'
+      });
+    } catch(err) {
+      return reply.status(401).send({
+        message: "invalid credentials",
       });
     }
-
-    return reply.status(401).send({
-      message: "invalid credentials",
-    });
   },
 
   async newRegister(
@@ -27,10 +25,14 @@ export const AuthController = {
     reply: FastifyReply
   ) {
     try {
-      await authService.register(req.body);
+      await AuthService.register(req.body);
       reply.redirect('/login');
     } catch (err) {
-      reply.status(err.statusCode || 500).send(err.message);
+      const e = err as any;
+
+      return reply
+      .status(e.statusCode ?? 500)
+      .send({ message: e.message ?? "Internal Server Error" });
     }
   },
 

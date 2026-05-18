@@ -24,10 +24,13 @@ export const TodoController = {
     req: FastifyRequest<{ Body: { title: string } }>,
     reply: FastifyReply
   ) {
+    req.log.info("create todo started");
     try {
       await TodoService.create(req.body.title);
+      req.log.info("create todo success");
       reply.code(201).send({ message: "created" });
-    } catch {
+    } catch(err) {
+      req.log.error(err, "create todo failed");
       reply.code(400).send({ message: "invalid title" });
     }
   },
