@@ -2,31 +2,31 @@
 import { TodoRepository } from "../repositories/todos.repository";
 
 export const TodoService = {
-  async getAll() {
-    return TodoRepository.findAll();
+  async getAll(userId: number) {
+    return TodoRepository.findAll(userId);
   },
 
-  async getById(id: number) {
-    const todo = await TodoRepository.findById(id);
+  async getById(id: number, userId: number) {
+    const todo = await TodoRepository.findById(id, userId);
     if (!todo) throw new Error("NOT_FOUND");
     return todo;
   },
 
-  async create(content: string) {
-    if (!content || content.length > 100) {
+  async create(title: string, userId: number) {
+    if (!title || title.length > 100) {
       throw new Error("INVALID_CONTENT");
     }
-    await TodoRepository.create(content, 0);
+    await TodoRepository.create(title, userId, 0);
   },
 
-  async update(id: number, data: { content?: string; status?: number }) {
-    await this.getById(id); // 存在確認
-    await TodoRepository.update(id, data);
+  async update(id: number, userId: number, data: { title?: string; status?: number }) {
+    await this.getById(id, userId);
+    await TodoRepository.update(id, userId, data);
   },
 
-  async delete(id: number) {
-    await this.getById(id);
-    await TodoRepository.delete(id);
-  }
+  async delete(id: number, userId: number) {
+    await this.getById(id, userId);
+    await TodoRepository.delete(id, userId);
+  },
 };
 
