@@ -3,33 +3,37 @@ import { pool } from "../db/client";
 import { Todo } from "../types/todo";
 
 export const TodoRepository = {
-  async findAll(): Promise<Todo[]> {
-    const [rows] = await pool.query("SELECT * FROM todos");
+  async findAll(userId: number): Promise<Todo[]> {
+    const [rows] = await pool.query(
+      "SELECT * FROM todos WHERE user_id = ?",
+      [userId]
+    );
     return rows as Todo[];
   },
 
-  async findById(id: number): Promise<Todo | null> {
+  async findById(id: number, userId: number): Promise<Todo | null> {
     const [rows] = await pool.query(
-      "SELECT * FROM todos WHERE id = ?",
-      [id]
+      "SELECT * FROM todos WHERE id = ? AND user_id = ?",
+      [id, userId]
     );
     return (rows as Todo[])[0] ?? null;
   },
 
-  async create(title: string, status: number = 0) {
+  async create(title: string, userId: number, status: number = 0) {
     await pool.query(
-      `INSERT INTO todos (title, status, created_at, updated_at)
-       VALUES (?, ?, NOW(), NOW())`,
-      [title, status]
+      `INSERT INTO todos (title, user_id, status, created_at, updated_at)
+       VALUES (?, ?, ?, NOW(), NOW())`,
+      [title, userId, status]
     );
   },
 
   async update(
     id: number,
+    userId: number,
     data: Partial<Pick<Todo, "title" | "status">>
   ) {
     const fields: string[] = [];
-    const values: any[] = [];
+    const values: unknown[] = [];
 
     if (data.title !== undefined) {
       fields.push("title = ?");
@@ -43,18 +47,21 @@ export const TodoRepository = {
 
     if (fields.length === 0) return;
 
-    values.push(id);
+    values.push(id, userId);
 
     const sql = `
       UPDATE todos SET ${fields.join(", ")}, updated_at = NOW()
-      WHERE id = ?
+      WHERE id = ? AND user_id = ?
     `;
 
     await pool.query(sql, values);
   },
 
-  async delete(id: number) {
-    await pool.query("DELETE FROM todos WHERE id = ?", [id]);
-  }
+  async delete(id: number, userId: number) {
+    await pool.query(
+      "DELETE FROM todos WHERE id = ? AND user_id = ?",
+      [id, userId]
+    );
+  },
 };
 

@@ -64,6 +64,10 @@ export default function TodoApp() {
 
   return (
     <>
+      <form action="/api/auth/logout" method="POST">
+        <button type="submit">ログアウト</button>
+      </form>
+
       <InputTodo
         todoText={todoText}
         onChange={(e) => setTodoText(e.target.value)}

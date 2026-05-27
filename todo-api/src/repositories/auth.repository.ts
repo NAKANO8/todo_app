@@ -3,13 +3,13 @@ import { pool } from '../db/client';
 
 type CreateUserInput = {
   email: string;
-  passwordHash: string
+  password_hash: string;
 }
 
-type User = RowDataPacket & {
+export type User = RowDataPacket & {
   id: number;
   email: string;
-  passwordHash: string;
+  password_hash: string;
 };
 
 export const AuthRepository = {
@@ -17,18 +17,22 @@ export const AuthRepository = {
     const [rows] = await pool.query<User[]>(
       'SELECT * FROM users WHERE email = ?',
       [email]
-    )
+    );
     return rows[0] ?? null;
   },
-  
-  async createUser({
-    email,
-    passwordHash
-  }: CreateUserInput) {
+
+  async findById(id: number) {
+    const [rows] = await pool.query<User[]>(
+      'SELECT id, email FROM users WHERE id = ?',
+      [id]
+    );
+    return rows[0] ?? null;
+  },
+
+  async createUser({ email, password_hash }: CreateUserInput) {
     await pool.query(
-      `INSERT INTO users (email, passwordHash)
-        VALUES (?, ?)`,
-        [email, passwordHash]
+      `INSERT INTO users (email, password_hash) VALUES (?, ?)`,
+      [email, password_hash]
     );
   },
 }

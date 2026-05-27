@@ -1,5 +1,6 @@
 export type Todo = {
   id: number;
+  user_id: number;
   title: string;
   status: number;
   created_at: string;

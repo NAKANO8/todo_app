@@ -1,13 +1,6 @@
-import TodoApp from "../features/todo/TodoApp"
-import LoginForm from "./login/page"
+import TodoApp from "../features/todo/TodoApp";
 
 export default function Page() {
-  const isLoggedIn = false; //ここをcookieやセッションで成功したか見ないといけない
-
-  if(isLoggedIn) {
-    return <TodoApp />
-  } else {
-    return <LoginForm />
-  }
+  return <TodoApp />;
 }
 
