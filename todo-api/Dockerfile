@@ -1,6 +1,6 @@
 FROM node:22
 
-ENV CI = true
+ENV CI=true
 
 WORKDIR /app
 
