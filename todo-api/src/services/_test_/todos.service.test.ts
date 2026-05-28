@@ -20,20 +20,19 @@ describe("TodoService.create", () => {
 
   it("空文字はエラーになる", async () => {
     await expect(
-      TodoService.create("")
+      TodoService.create("", 1)
     ).rejects.toThrow();
   });
 
   it("100文字超はエラーになる", async () => {
     await expect(
-      TodoService.create("a".repeat(101))
+      TodoService.create("a".repeat(101), 1)
     ).rejects.toThrow();
   });
 
   it("正常ならRepository.createが呼ばれる", async () => {
-    await TodoService.create("test todo");
+    await TodoService.create("test todo", 1);
 
-    expect(TodoRepository.create).toHaveBeenCalledWith("test todo", 0);
+    expect(TodoRepository.create).toHaveBeenCalledWith("test todo", 1, 0);
   });
 });
-

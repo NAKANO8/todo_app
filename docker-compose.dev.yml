@@ -9,6 +9,10 @@ services:
     env_file:
       - ./todo-api/.env.dev
 
+  db:
+    ports:
+      - "3306:3306"
+
   web:
     command: pnpm run dev
     ports:
