@@ -20,7 +20,7 @@ declare module '@fastify/session' {
 
 export async function buildApp() {
   await app.register(cors, {
-    origin: "http://localhost:3000",
+    origin: process.env.CORS_ORIGIN ?? "http://localhost:3000",
     methods: ["GET", "POST", "PATCH", "DELETE", "OPTIONS"],
     allowedHeaders: ["Content-Type"],
     credentials: true,
@@ -33,7 +33,9 @@ export async function buildApp() {
   await app.register(session, {
     secret: process.env.SESSION_SECRET!,
     cookie: {
-      secure: false,
+      secure: process.env.NODE_ENV === "production",
+      httpOnly: true,
+      sameSite: "strict",
     },
   });
 
