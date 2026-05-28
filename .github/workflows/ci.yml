@@ -1,0 +1,86 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test-api:
+    runs-on: ubuntu-latest
+
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: root
+          MYSQL_DATABASE: todo
+          MYSQL_USER: todo
+          MYSQL_PASSWORD: testpassword
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h localhost"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Apply DB schema
+        run: mysql -h 127.0.0.1 -P 3306 -u root -proot todo < mysql/init.sql
+
+      - name: Run API tests
+        working-directory: todo-api
+        env:
+          DB_HOST: 127.0.0.1
+          DB_USER: todo
+          DB_PASSWORD: testpassword
+          DB_NAME: todo
+          DB_PORT: 3306
+          SESSION_SECRET: test_session_secret_that_is_32chars!
+        run: pnpm test
+
+  build-check:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Type check API
+        working-directory: todo-api
+        run: pnpm build
+
+      - name: Build & type check web
+        working-directory: todo-web
+        run: pnpm build
+
+      - name: Lint web
+        working-directory: todo-web
+        run: pnpm lint

@@ -1,10 +1,21 @@
 services:
   api:
+    image: ghcr.io/nakano8/todos-api:latest
     command: pnpm run start
+    ports:
+      - "3001:3001"
     env_file:
       - ./todo-api/.env.prod
     restart: always
 
   web:
+    image: ghcr.io/nakano8/todos-web:latest
     command: pnpm run start
+    ports:
+      - "3000:3000"
+    restart: always
+
+  db:
+    env_file:
+      - ./todo-api/.env.prod
     restart: always
