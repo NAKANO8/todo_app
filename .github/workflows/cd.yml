@@ -42,6 +42,7 @@ jobs:
           file: ./todo-web/Dockerfile
           push: true
           tags: ghcr.io/nakano8/todos-web:latest
+          build-args: NEXT_PUBLIC_API_BASE=https://api.hikawata.com
           cache-from: type=gha
           cache-to: type=gha,mode=max
 

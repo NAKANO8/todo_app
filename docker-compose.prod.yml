@@ -13,6 +13,8 @@ services:
     command: pnpm run start
     ports:
       - "3000:3000"
+    environment:
+      - API_INTERNAL_BASE=http://api:3001
     restart: always
 
   db:
