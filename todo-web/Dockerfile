@@ -21,6 +21,9 @@ WORKDIR /app/todo-web
 
 ENV NODE_ENV=production
 
+ARG NEXT_PUBLIC_API_BASE
+ENV NEXT_PUBLIC_API_BASE=$NEXT_PUBLIC_API_BASE
+
 RUN pnpm build
 
 CMD ["pnpm", "run", "start"]
