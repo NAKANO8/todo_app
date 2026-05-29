@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest } from "next/server";
 
 const FASTIFY_API = process.env.API_INTERNAL_BASE ?? "http://localhost:3001";
 
@@ -14,10 +14,16 @@ export async function POST(request: NextRequest) {
   });
 
   if (!res.ok) {
-    return NextResponse.redirect(new URL("/login?error=invalid_credentials", request.url), { status: 303 });
+    return new Response(null, {
+      status: 303,
+      headers: { Location: "/login?error=invalid_credentials" },
+    });
   }
 
-  const response = NextResponse.redirect(new URL("/", request.url), { status: 303 });
+  const response = new Response(null, {
+    status: 303,
+    headers: { Location: "/" },
+  });
 
   const cookies = res.headers.getSetCookie();
   for (const cookie of cookies) {

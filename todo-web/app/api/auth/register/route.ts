@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest } from "next/server";
 
 const FASTIFY_API = process.env.API_INTERNAL_BASE ?? "http://localhost:3001";
 
@@ -14,8 +14,14 @@ export async function POST(request: NextRequest) {
   });
 
   if (!res.ok) {
-    return NextResponse.redirect(new URL("/register?error=register_failed", request.url), { status: 303 });
+    return new Response(null, {
+      status: 303,
+      headers: { Location: "/register?error=register_failed" },
+    });
   }
 
-  return NextResponse.redirect(new URL("/login", request.url), { status: 303 });
+  return new Response(null, {
+    status: 303,
+    headers: { Location: "/login" },
+  });
 }

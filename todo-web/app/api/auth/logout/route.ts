@@ -10,8 +10,10 @@ export async function POST(request: NextRequest) {
     headers: { Cookie: cookieHeader },
   });
 
-  const response = NextResponse.redirect(new URL("/login", request.url), { status: 303 });
-  // セッションクッキーを削除する
+  const response = new NextResponse(null, {
+    status: 303,
+    headers: { Location: "/login" },
+  });
   response.cookies.delete("sessionId");
   return response;
 }
