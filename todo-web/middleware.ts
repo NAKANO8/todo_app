@@ -24,7 +24,10 @@ export async function middleware(request: NextRequest) {
   }
 
   if (!authenticated) {
-    return NextResponse.redirect(new URL("/login", request.url));
+    return new Response(null, {
+      status: 303,
+      headers: { Location: "/login" },
+    });
   }
 
   return NextResponse.next();
