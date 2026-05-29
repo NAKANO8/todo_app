@@ -24,10 +24,10 @@ export async function middleware(request: NextRequest) {
   }
 
   if (!authenticated) {
-    return new Response(null, {
-      status: 303,
-      headers: { Location: "/login" },
-    });
+    const url = request.nextUrl.clone();
+    url.pathname = "/login";
+    url.search = "";
+    return NextResponse.redirect(url);
   }
 
   return NextResponse.next();
