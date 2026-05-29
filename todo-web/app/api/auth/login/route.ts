@@ -14,15 +14,14 @@ export async function POST(request: NextRequest) {
   });
 
   if (!res.ok) {
-    return NextResponse.redirect(new URL("/login?error=invalid_credentials", request.url));
+    return NextResponse.redirect(new URL("/login?error=invalid_credentials", request.url), { status: 303 });
   }
 
   const response = NextResponse.redirect(new URL("/", request.url), { status: 303 });
 
-  // Fastifyのセッションクッキーをブラウザに転送する
-  const setCookie = res.headers.get("set-cookie");
-  if (setCookie) {
-    response.headers.set("set-cookie", setCookie);
+  const cookies = res.headers.getSetCookie();
+  for (const cookie of cookies) {
+    response.headers.append("set-cookie", cookie);
   }
 
   return response;
