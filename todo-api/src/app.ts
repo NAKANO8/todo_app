@@ -7,6 +7,7 @@ import formbody from "@fastify/formbody";
 import { todoRoutes } from "./routes/todos.route";
 import { authRoutes } from "./routes/auth.route";
 
+// https://www.cloudflare.com/ips-v4 / ips-v6 で定期的に最新化すること
 const CLOUDFLARE_CIDRS = [
   '173.245.48.0/20', '103.21.244.0/22', '103.22.200.0/22',
   '103.31.4.0/22',   '141.101.64.0/18', '108.162.192.0/18',
@@ -20,7 +21,7 @@ const CLOUDFLARE_CIDRS = [
 
 export const app = Fastify({
   logger: true,
-  trustProxy: CLOUDFLARE_CIDRS.join(','),
+  trustProxy: CLOUDFLARE_CIDRS,
 });
 
 declare module '@fastify/session' {
