@@ -9,6 +9,7 @@ import { authRoutes } from "./routes/auth.route";
 
 export const app = Fastify({
   logger: true,
+  trustProxy: true,
 });
 
 declare module '@fastify/session' {

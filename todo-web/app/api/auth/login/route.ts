@@ -19,10 +19,9 @@ export async function POST(request: NextRequest) {
 
   const response = NextResponse.redirect(new URL("/", request.url), { status: 303 });
 
-  // Fastifyのセッションクッキーをブラウザに転送する
-  const setCookie = res.headers.get("set-cookie");
-  if (setCookie) {
-    response.headers.set("set-cookie", setCookie);
+  const cookies = res.headers.getSetCookie();
+  for (const cookie of cookies) {
+    response.headers.append("set-cookie", cookie);
   }
 
   return response;
