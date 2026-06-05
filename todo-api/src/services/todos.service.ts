@@ -1,5 +1,6 @@
 // services/todos.service.ts
 import { TodoRepository } from "../repositories/todos.repository";
+import { AppError } from "../errors/AppError";
 
 export const TodoService = {
   async getAll(userId: number) {
@@ -8,13 +9,13 @@ export const TodoService = {
 
   async getById(id: number, userId: number) {
     const todo = await TodoRepository.findById(id, userId);
-    if (!todo) throw new Error("NOT_FOUND");
+    if (!todo) throw new AppError("Todo not found", 404);
     return todo;
   },
 
   async create(title: string, userId: number) {
     if (!title || title.length > 100) {
-      throw new Error("INVALID_CONTENT");
+      throw new AppError("invalid title", 400);
     }
     await TodoRepository.create(title, userId, 0);
   },

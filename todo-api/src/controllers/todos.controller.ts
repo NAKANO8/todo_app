@@ -1,6 +1,7 @@
 // controllers/todos.controller.ts
 import { FastifyRequest, FastifyReply } from "fastify";
 import { TodoService } from "../services/todos.service";
+import { AppError } from "../errors/AppError";
 
 export const TodoController = {
   async getAll(req: FastifyRequest, reply: FastifyReply) {
@@ -17,8 +18,12 @@ export const TodoController = {
     try {
       const todo = await TodoService.getById(Number(req.params.id), userId);
       reply.send(todo);
-    } catch {
-      reply.code(404).send({ message: "Todo not found" });
+    } catch (err) {
+      if (err instanceof AppError) {
+        return reply.code(err.statusCode).send({ message: err.message });
+      }
+      req.log.error(err, 'getById failed');
+      return reply.code(500).send({ message: 'Internal Server Error' });
     }
   },
 
@@ -27,14 +32,15 @@ export const TodoController = {
     reply: FastifyReply
   ) {
     const userId = req.session.userId!;
-    req.log.info("create todo started");
     try {
       await TodoService.create(req.body.title, userId);
-      req.log.info("create todo success");
       reply.code(201).send({ message: "created" });
     } catch (err) {
-      req.log.error(err, "create todo failed");
-      reply.code(400).send({ message: "invalid title" });
+      if (err instanceof AppError) {
+        return reply.code(err.statusCode).send({ message: err.message });
+      }
+      req.log.error(err, 'create todo failed');
+      return reply.code(500).send({ message: 'Internal Server Error' });
     }
   },
 
@@ -49,8 +55,12 @@ export const TodoController = {
     try {
       await TodoService.update(Number(req.params.id), userId, req.body);
       reply.send({ message: "updated" });
-    } catch {
-      reply.code(404).send({ message: "Todo not found" });
+    } catch (err) {
+      if (err instanceof AppError) {
+        return reply.code(err.statusCode).send({ message: err.message });
+      }
+      req.log.error(err, 'update todo failed');
+      return reply.code(500).send({ message: 'Internal Server Error' });
     }
   },
 
@@ -62,9 +72,12 @@ export const TodoController = {
     try {
       await TodoService.delete(Number(req.params.id), userId);
       reply.send({ message: "deleted" });
-    } catch {
-      reply.code(404).send({ message: "Todo not found" });
+    } catch (err) {
+      if (err instanceof AppError) {
+        return reply.code(err.statusCode).send({ message: err.message });
+      }
+      req.log.error(err, 'delete todo failed');
+      return reply.code(500).send({ message: 'Internal Server Error' });
     }
   },
 };
-
