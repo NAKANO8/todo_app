@@ -12,6 +12,14 @@ services:
   db:
     ports:
       - "3306:3306"
+    env_file:
+      - ./todo-api/.env.dev
+    volumes:
+      - db-data-dev:/var/lib/mysql
+      - ./mysql:/docker-entrypoint-initdb.d
+
+volumes:
+  db-data-dev:
 
   web:
     command: pnpm run dev

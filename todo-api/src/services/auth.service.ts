@@ -1,19 +1,20 @@
 import { AuthRepository } from "../repositories/auth.repository";
 import { LoginBody } from "../types/todo";
 import bcrypt from "bcrypt";
+import { AppError } from "../errors/AppError";
 
 export const AuthService = {
   async login({ email, password }: LoginBody) {
     const user = await AuthRepository.findByEmail(email);
 
     if (!user) {
-      throw new Error('invalid credentials');
+      throw new AppError('invalid credentials', 401);
     }
 
     const matched = await bcrypt.compare(password, user.password_hash);
 
     if (!matched) {
-      throw new Error('invalid credentials');
+      throw new AppError('invalid credentials', 401);
     }
 
     return user;
@@ -21,13 +22,13 @@ export const AuthService = {
 
   async register({ email, password }: LoginBody) {
     if (!email || !password) {
-      throw new Error('no email or password');
+      throw new AppError('no email or password', 400);
     }
 
     const existingUser = await AuthRepository.findByEmail(email);
 
     if (existingUser) {
-      throw new Error('User is already registered');
+      throw new AppError('User is already registered', 400);
     }
 
     const password_hash = await bcrypt.hash(password, 10);

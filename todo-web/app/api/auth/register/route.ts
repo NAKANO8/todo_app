@@ -9,8 +9,8 @@ export async function POST(request: NextRequest) {
 
   const res = await fetch(`${FASTIFY_API}/auth/register`, {
     method: "POST",
-    headers: { "Content-Type": "application/x-www-form-urlencoded" },
-    body: new URLSearchParams({ email, password }).toString(),
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email, password }),
   });
 
   if (!res.ok) {

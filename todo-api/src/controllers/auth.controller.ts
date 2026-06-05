@@ -1,6 +1,7 @@
 import { FastifyRequest, FastifyReply } from "fastify";
 import { LoginBody } from "../types/todo";
 import { AuthService } from "../services/auth.service";
+import { AppError } from "../errors/AppError";
 
 export const AuthController = {
   async login(
@@ -11,8 +12,12 @@ export const AuthController = {
       const user = await AuthService.login(req.body);
       req.session.userId = user.id;
       return reply.send({ message: 'login success' });
-    } catch {
-      return reply.status(401).send({ message: "invalid credentials" });
+    } catch (err) {
+      if (err instanceof AppError) {
+        return reply.status(err.statusCode).send({ message: err.message });
+      }
+      req.log.error(err, 'login failed');
+      return reply.status(500).send({ message: 'Internal Server Error' });
     }
   },
 
@@ -24,8 +29,11 @@ export const AuthController = {
       await AuthService.register(req.body);
       return reply.status(201).send({ message: 'register success' });
     } catch (err) {
-      const e = err as Error;
-      return reply.status(400).send({ message: e.message ?? "Internal Server Error" });
+      if (err instanceof AppError) {
+        return reply.status(err.statusCode).send({ message: err.message });
+      }
+      req.log.error(err, 'register failed');
+      return reply.status(500).send({ message: 'Internal Server Error' });
     }
   },
 
@@ -51,8 +59,12 @@ export const AuthController = {
     try {
       const user = await AuthService.me(userId);
       return reply.send({ id: user.id, email: user.email });
-    } catch {
-      return reply.status(401).send({ message: 'Unauthorized' });
+    } catch (err) {
+      if (err instanceof AppError) {
+        return reply.status(401).send({ message: 'Unauthorized' });
+      }
+      req.log.error(err, 'me failed');
+      return reply.status(500).send({ message: 'Internal Server Error' });
     }
   },
 };
