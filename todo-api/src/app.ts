@@ -46,7 +46,7 @@ export async function buildApp() {
   await app.register(session, {
     secret: process.env.SESSION_SECRET!,
     cookie: {
-      secure: process.env.NODE_ENV === "production",
+      secure: process.env.COOKIE_SECURE === "true",
       httpOnly: true,
       sameSite: "strict",
     },
