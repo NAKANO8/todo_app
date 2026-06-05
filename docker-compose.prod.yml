@@ -1,3 +1,7 @@
+networks:
+  app-net:
+    driver: bridge
+
 services:
   api:
     image: ghcr.io/nakano8/todos-api:latest
@@ -6,6 +10,8 @@ services:
       - "3001:3001"
     env_file:
       - ./todo-api/.env.prod
+    networks:
+      - app-net
     restart: always
 
   web:
@@ -15,9 +21,14 @@ services:
       - "3000:3000"
     environment:
       - API_INTERNAL_BASE=http://api:3001
+    networks:
+      - app-net
     restart: always
 
   db:
+    image: mysql:8.0
     env_file:
       - ./todo-api/.env.prod
+    networks:
+      - app-net
     restart: always
