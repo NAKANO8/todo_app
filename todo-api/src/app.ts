@@ -48,7 +48,8 @@ export async function buildApp() {
     cookie: {
       secure: process.env.COOKIE_SECURE === "true",
       httpOnly: true,
-      sameSite: "strict",
+      sameSite: "lax",
+      domain: process.env.COOKIE_DOMAIN,
     },
   });
 

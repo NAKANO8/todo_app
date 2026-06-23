@@ -18,9 +18,6 @@ services:
       - db-data-dev:/var/lib/mysql
       - ./mysql:/docker-entrypoint-initdb.d
 
-volumes:
-  db-data-dev:
-
   web:
     command: pnpm run dev
     ports:
@@ -28,3 +25,6 @@ volumes:
     volumes:
       - ./todo-web:/app/todo-web
       - /app/node_modules
+
+volumes:
+  db-data-dev:
