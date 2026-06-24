@@ -19,9 +19,13 @@ const CLOUDFLARE_CIDRS = [
   '2c0f:f248::/32',
 ];
 
+// Docker の内部ネットワーク帯域 (172.16.0.0/12) を信頼することで、
+// web コンテナからの X-Forwarded-Proto: https を受け付ける
+const TRUSTED_PROXIES = [...CLOUDFLARE_CIDRS, '172.16.0.0/12'];
+
 export const app = Fastify({
   logger: true,
-  trustProxy: CLOUDFLARE_CIDRS,
+  trustProxy: TRUSTED_PROXIES,
 });
 
 declare module '@fastify/session' {

@@ -22,6 +22,10 @@ function callLoginApi(
         headers: {
           "Content-Type": "application/json",
           "Content-Length": Buffer.byteLength(body),
+          // @fastify/session は secure:true のとき req.secure=false だと
+          // Set-Cookie を省略する。app.ts で 172.16.0.0/12 を信頼済みなので
+          // このヘッダーで HTTPS 接続として扱わせる。
+          "X-Forwarded-Proto": "https",
         },
       },
       (res) => {
