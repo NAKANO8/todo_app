@@ -37,13 +37,6 @@ declare module '@fastify/session' {
 }
 
 export async function buildApp() {
-  await app.register(rateLimit, {
-    global: true,
-    max: 200,
-    timeWindow: '1 minute',
-    keyGenerator: (req) => req.ip,
-  });
-
   await app.register(cors, {
     origin: process.env.CORS_ORIGIN ?? "http://localhost:3000",
     methods: ["GET", "POST", "PATCH", "DELETE", "OPTIONS"],
@@ -63,6 +56,13 @@ export async function buildApp() {
       sameSite: "lax",
       domain: process.env.COOKIE_DOMAIN,
     },
+  });
+
+  await app.register(rateLimit, {
+    global: true,
+    max: 200,
+    timeWindow: '1 minute',
+    keyGenerator: (req) => req.ip,
   });
 
   await app.register(todoRoutes);
