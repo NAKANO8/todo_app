@@ -9,7 +9,7 @@ export const InputTodo = (props: InputTodoProps) => {
   const { todoText, onChange, onClick, disabled } = props;
 
   return (
-    <div className="flex items-center bg-teal-100 w-[400px] h-[30px] p-2 m-2 rounded-lg">
+    <div className="flex items-center bg-teal-100 w-full h-[30px] p-2 rounded-lg">
       <input
         disabled={disabled}
         placeholder="Todoを入力"
