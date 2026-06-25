@@ -9,12 +9,12 @@ import { CompleteTodos } from "../../components/todo/CompleteTodos";
 
 import type { Todo } from "@/lib/types";
 import { fetchTodos, createTodo, updateTodo, deleteTodo } from "@/lib/api/todos";
+import styles from "./TodoApp.module.css";
 
 export default function TodoApp() {
   const [todoText, setTodoText] = useState("");
   const [todos, setTodos] = useState<Todo[]>([]);
 
-  // 初期ロード
   useEffect(() => {
     fetchTodos().then(setTodos).catch(console.error);
   }, []);
@@ -34,7 +34,6 @@ export default function TodoApp() {
     }
   }, [isMaxLimitIncompleteTodos]);
 
-  // 追加（作成後にIDが必要なため1回だけ再取得）
   const onClickAdd = async () => {
     if (todoText === "") return;
     await createTodo(todoText);
@@ -43,52 +42,61 @@ export default function TodoApp() {
     setTodoText("");
   };
 
-  // 削除
   const onClickDelete = async (id: number) => {
     await deleteTodo(id);
     setTodos((prev) => prev.filter((t) => t.id !== id));
   };
 
-  // 完了
   const onClickComplete = async (id: number) => {
     await updateTodo(id, { status: 1 });
     setTodos((prev) => prev.map((t) => (t.id === id ? { ...t, status: 1 } : t)));
   };
 
-  // 戻す
   const onClickBack = async (id: number) => {
     await updateTodo(id, { status: 0 });
     setTodos((prev) => prev.map((t) => (t.id === id ? { ...t, status: 0 } : t)));
   };
 
   return (
-    <>
-      <form action="/api/auth/logout" method="POST">
-        <button type="submit">ログアウト</button>
-      </form>
+    <div className={styles.page}>
+      <header className={styles.header}>
+        <div className={styles.logoLockup}>
+          <svg width="26" height="26" viewBox="0 0 36 36" fill="none">
+            <rect x="1.5" y="1.5" width="33" height="33" rx="9" stroke="#2f6f5e" strokeWidth="2" />
+            <path d="M11 18.5L15.5 23L25 12.5" stroke="#2f6f5e" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+          <div className={styles.wordmark}>
+            Todo<span className={styles.wordmarkLight}> App</span>
+          </div>
+        </div>
+        <form action="/api/auth/logout" method="POST">
+          <button type="submit" className={styles.logoutBtn}>ログアウト</button>
+        </form>
+      </header>
 
-      <InputTodo
-        todoText={todoText}
-        onChange={(e) => setTodoText(e.target.value)}
-        onClick={onClickAdd}
-        disabled={isMaxLimitIncompleteTodos}
-      />
+      <div className={styles.content}>
+        <InputTodo
+          todoText={todoText}
+          onChange={(e) => setTodoText(e.target.value)}
+          onClick={onClickAdd}
+          disabled={isMaxLimitIncompleteTodos}
+        />
 
-      {isMaxLimitIncompleteTodos && (
-        <p style={{ color: "red" }}>登録できるTodoは5個までです</p>
-      )}
+        {isMaxLimitIncompleteTodos && (
+          <p style={{ color: "red", margin: 0 }}>登録できるTodoは5個までです</p>
+        )}
 
-      <IncompleteTodos
-        todos={incompleteTodos}
-        onClickComplete={onClickComplete}
-        onClickDelete={onClickDelete}
-      />
+        <IncompleteTodos
+          todos={incompleteTodos}
+          onClickComplete={onClickComplete}
+          onClickDelete={onClickDelete}
+        />
 
-      <CompleteTodos
-        todos={completeTodos}
-        onClickBack={onClickBack}
-      />
-    </>
+        <CompleteTodos
+          todos={completeTodos}
+          onClickBack={onClickBack}
+        />
+      </div>
+    </div>
   );
 }
-

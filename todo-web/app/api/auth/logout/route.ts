@@ -12,7 +12,7 @@ export async function POST(request: NextRequest) {
 
   const response = new NextResponse(null, {
     status: 303,
-    headers: { Location: "/login" },
+    headers: { Location: "/" },
   });
   response.cookies.delete("sessionId");
   return response;

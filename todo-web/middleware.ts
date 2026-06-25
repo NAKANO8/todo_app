@@ -4,25 +4,56 @@ const FASTIFY_API = process.env.API_INTERNAL_BASE ?? "http://localhost:3001";
 
 const PUBLIC_PATHS = ["/login", "/register", "/api/auth"];
 
+const AUTH_CACHE_TTL_MS = 30_000;
+const authCache = new Map<string, { ok: boolean; expires: number }>();
+
+function extractSessionId(cookieHeader: string): string | null {
+  const match = cookieHeader.match(/sessionId=([^;]+)/);
+  return match ? match[1] : null;
+}
+
+async function resolveAuth(cookieHeader: string, sessionId: string | null): Promise<boolean> {
+  if (!sessionId) return false;
+
+  const cached = authCache.get(sessionId);
+  if (cached && cached.expires > Date.now()) return cached.ok;
+
+  let ok = false;
+  try {
+    const res = await fetch(`${FASTIFY_API}/auth/me`, {
+      headers: { Cookie: cookieHeader },
+    });
+    ok = res.ok;
+  } catch {
+    ok = false;
+  }
+
+  if (authCache.size > 500) authCache.clear();
+  authCache.set(sessionId, { ok, expires: Date.now() + AUTH_CACHE_TTL_MS });
+  return ok;
+}
+
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
+  const cookieHeader = request.headers.get("cookie") ?? "";
+  const sessionId = extractSessionId(cookieHeader);
+
+  // Landing page: public, but redirect authenticated users straight to the app
+  if (pathname === "/") {
+    const authenticated = await resolveAuth(cookieHeader, sessionId);
+    if (authenticated) {
+      const url = request.nextUrl.clone();
+      url.pathname = "/todos";
+      return NextResponse.redirect(url);
+    }
+    return NextResponse.next();
+  }
 
   if (PUBLIC_PATHS.some((path) => pathname.startsWith(path))) {
     return NextResponse.next();
   }
 
-  const cookieHeader = request.headers.get("cookie") ?? "";
-
-  let authenticated = false;
-  try {
-    const res = await fetch(`${FASTIFY_API}/auth/me`, {
-      headers: { Cookie: cookieHeader },
-    });
-    authenticated = res.ok;
-  } catch {
-    authenticated = false;
-  }
-
+  const authenticated = await resolveAuth(cookieHeader, sessionId);
   if (!authenticated) {
     const url = request.nextUrl.clone();
     url.pathname = "/login";

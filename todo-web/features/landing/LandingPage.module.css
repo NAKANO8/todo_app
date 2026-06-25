@@ -1,0 +1,224 @@
+.page {
+  min-height: 100vh;
+  background: #fafaf9;
+  color: #1c2024;
+  font-family: "Hiragino Sans", "Yu Gothic", system-ui, -apple-system, sans-serif;
+}
+
+/* ── Header ── */
+.header {
+  display: flex;
+  align-items: center;
+  padding: 18px 20px;
+  border-bottom: 1px solid #e6e4df;
+  background: #fff;
+}
+
+.logoLockup {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.wordmark {
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: #1c2024;
+}
+
+.wordmarkLight {
+  font-weight: 500;
+  color: #6b6f76;
+}
+
+/* ── Hero ── */
+.hero {
+  padding: 48px 24px 36px;
+  text-align: center;
+}
+
+.hero h1 {
+  font-size: 23px;
+  line-height: 1.45;
+  font-weight: 700;
+  margin: 0 0 10px;
+  letter-spacing: -0.01em;
+  white-space: nowrap;
+  color: #1c2024;
+}
+
+.hero p {
+  font-size: 14px;
+  color: #6b6f76;
+  margin: 0;
+  line-height: 1.7;
+}
+
+/* ── Device mockup ── */
+.screenshotWrap {
+  padding: 0 24px 40px;
+  display: flex;
+  justify-content: center;
+}
+
+.device {
+  width: 100%;
+  max-width: 320px;
+  background: #fff;
+  border: 1px solid #e6e4df;
+  border-radius: 18px;
+  box-shadow: 0 24px 48px -24px rgba(28, 32, 36, 0.18);
+  overflow: hidden;
+}
+
+.deviceBar {
+  height: 34px;
+  background: #f3f2ef;
+  border-bottom: 1px solid #e6e4df;
+  display: flex;
+  align-items: center;
+  padding: 0 12px;
+  gap: 6px;
+}
+
+.deviceDot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #d9d7d1;
+  display: inline-block;
+}
+
+.deviceBody {
+  padding: 12px 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.toolbar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.pill {
+  font-size: 10px;
+  background: #f1efea;
+  color: #8a8d93;
+  border-radius: 6px;
+  padding: 5px 8px;
+  flex-shrink: 0;
+}
+
+.inputMock {
+  flex: 1;
+  font-size: 10px;
+  color: #b3b1ac;
+  border: 1px solid #e6e4df;
+  border-radius: 6px;
+  padding: 5px 8px;
+}
+
+.panel {
+  border: 1px solid #a9cfc9;
+  border-radius: 10px;
+  padding: 10px 12px 12px;
+}
+
+.panelDone {
+  background: #c7e0db;
+}
+
+.panelTitle {
+  text-align: center;
+  font-size: 10px;
+  font-weight: 700;
+  color: #5b6b68;
+  letter-spacing: 0.02em;
+  margin-bottom: 8px;
+}
+
+.task {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 10.5px;
+  color: #1c2024;
+}
+
+.taskDot {
+  font-size: 10px;
+  color: #9a9da3;
+}
+
+.task .miniBtn {
+  font-size: 9px;
+  background: #f1efea;
+  color: #6b6f76;
+  border-radius: 5px;
+  padding: 3px 7px;
+  margin-left: auto;
+}
+
+.task .miniBtn + .miniBtn {
+  margin-left: 4px;
+}
+
+/* ── Auth buttons ── */
+.auth {
+  padding: 0 24px 56px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+}
+
+.btnPrimary {
+  display: block;
+  width: 100%;
+  max-width: 320px;
+  padding: 13px 0;
+  border-radius: 10px;
+  font-size: 14px;
+  font-weight: 600;
+  text-align: center;
+  background: #2f6f5e;
+  color: #fff;
+  text-decoration: none;
+}
+
+.btnSecondary {
+  display: block;
+  width: 100%;
+  max-width: 320px;
+  padding: 13px 0;
+  border-radius: 10px;
+  font-size: 14px;
+  font-weight: 600;
+  text-align: center;
+  background: #fff;
+  color: #1c2024;
+  border: 1px solid #e6e4df;
+  text-decoration: none;
+}
+
+/* ── Footer ── */
+.footer {
+  padding: 20px 24px 32px;
+  text-align: center;
+  border-top: 1px solid #e6e4df;
+}
+
+.footer p {
+  margin: 0;
+  font-size: 12px;
+  color: #6b6f76;
+}
+
+.footer a {
+  color: #6b6f76;
+  text-decoration: none;
+  font-weight: 600;
+}

@@ -1,6 +1,6 @@
-import TodoApp from "../features/todo/TodoApp";
+import LandingPage from "../features/landing/LandingPage";
 
 export default function Page() {
-  return <TodoApp />;
+  return <LandingPage />;
 }
 
