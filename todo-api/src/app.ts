@@ -4,6 +4,7 @@ import cors from "@fastify/cors";
 import cookie from "@fastify/cookie";
 import session from "@fastify/session";
 import formbody from "@fastify/formbody";
+import ajvFormats from "ajv-formats";
 import { todoRoutes } from "./routes/todos.route";
 import { authRoutes } from "./routes/auth.route";
 
@@ -26,6 +27,10 @@ const TRUSTED_PROXIES = [...CLOUDFLARE_CIDRS, '172.16.0.0/12'];
 export const app = Fastify({
   logger: true,
   trustProxy: TRUSTED_PROXIES,
+  ajv: {
+    // ajv-formats の型定義が Fastify の Plugin 型と微妙にズレているため as any でキャスト
+    plugins: [ajvFormats as any],
+  },
 });
 
 declare module '@fastify/session' {
