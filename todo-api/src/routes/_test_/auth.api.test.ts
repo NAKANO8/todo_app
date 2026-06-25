@@ -3,7 +3,7 @@ import { buildApp, app } from "../../app";
 import { pool } from "../../db/client";
 
 const TEST_EMAIL = "auth_test@example.com";
-const TEST_PASSWORD = "testpassword";
+const TEST_PASSWORD = "Testpassword1";
 
 beforeAll(async () => {
   await buildApp();
@@ -54,7 +54,7 @@ describe("Auth API", () => {
       const res = await app.inject({
         method: "POST",
         url: "/auth/login",
-        payload: { email: TEST_EMAIL, password: "wrongpassword" },
+        payload: { email: TEST_EMAIL, password: "Wrongpassword1" },
       });
       expect(res.statusCode).toBe(401);
     });
