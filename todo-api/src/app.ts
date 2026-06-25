@@ -4,6 +4,7 @@ import cors from "@fastify/cors";
 import cookie from "@fastify/cookie";
 import session from "@fastify/session";
 import formbody from "@fastify/formbody";
+import rateLimit from "@fastify/rate-limit";
 import { todoRoutes } from "./routes/todos.route";
 import { authRoutes } from "./routes/auth.route";
 
@@ -36,6 +37,13 @@ declare module '@fastify/session' {
 }
 
 export async function buildApp() {
+  await app.register(rateLimit, {
+    global: true,
+    max: 200,
+    timeWindow: '1 minute',
+    keyGenerator: (req) => req.ip,
+  });
+
   await app.register(cors, {
     origin: process.env.CORS_ORIGIN ?? "http://localhost:3000",
     methods: ["GET", "POST", "PATCH", "DELETE", "OPTIONS"],
