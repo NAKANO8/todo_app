@@ -17,5 +17,12 @@
   "keywords": [],
   "author": "",
   "license": "ISC",
-  "packageManager": "pnpm@11.1.2"
+  "packageManager": "pnpm@11.1.2",
+  "pnpm": {
+    "overrides": {
+      "vite": "^7.3.5",
+      "postcss": "^8.5.10",
+      "esbuild": "^0.28.1"
+    }
+  }
 }
