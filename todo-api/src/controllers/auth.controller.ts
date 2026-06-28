@@ -38,16 +38,24 @@ export const AuthController = {
   },
 
   async logout(req: FastifyRequest, reply: FastifyReply) {
+    const cookieClearOptions = {
+      path: '/',
+      httpOnly: true,
+      sameSite: 'lax' as const,
+      secure: process.env.COOKIE_SECURE === 'true',
+      domain: process.env.COOKIE_DOMAIN,
+    };
+
     if (req.session.userId) {
       req.session.destroy((err) => {
         if (err) {
           reply.status(500).send({ message: 'Internal Server Error' });
         } else {
-          reply.send({ message: 'logout success' });
+          reply.clearCookie('sessionId', cookieClearOptions).send({ message: 'logout success' });
         }
       });
     } else {
-      reply.send({ message: 'not logged in' });
+      reply.clearCookie('sessionId', cookieClearOptions).send({ message: 'not logged in' });
     }
   },
 

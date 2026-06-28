@@ -25,6 +25,8 @@ services:
     volumes:
       - ./todo-web:/app/todo-web
       - /app/node_modules
+    environment:
+      - NEXT_PUBLIC_API_BASE=http://localhost:3001
 
 volumes:
   db-data-dev:
