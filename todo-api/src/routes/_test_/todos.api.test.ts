@@ -10,13 +10,13 @@ beforeAll(async () => {
   await app.inject({
     method: "POST",
     url: "/auth/register",
-    payload: { email: "api_test@example.com", password: "testpassword" },
+    payload: { email: "api_test@example.com", password: "Testpassword1" },
   });
 
   const loginRes = await app.inject({
     method: "POST",
     url: "/auth/login",
-    payload: { email: "api_test@example.com", password: "testpassword" },
+    payload: { email: "api_test@example.com", password: "Testpassword1" },
   });
 
   const setCookie = loginRes.headers["set-cookie"];
