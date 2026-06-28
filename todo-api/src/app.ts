@@ -5,6 +5,7 @@ import cookie from "@fastify/cookie";
 import session from "@fastify/session";
 import formbody from "@fastify/formbody";
 import ajvFormats from "ajv-formats";
+import rateLimit from "@fastify/rate-limit";
 import { todoRoutes } from "./routes/todos.route";
 import { authRoutes } from "./routes/auth.route";
 
@@ -60,6 +61,13 @@ export async function buildApp() {
       sameSite: "lax",
       domain: process.env.COOKIE_DOMAIN,
     },
+  });
+
+  await app.register(rateLimit, {
+    global: true,
+    max: 200,
+    timeWindow: '1 minute',
+    keyGenerator: (req) => req.ip,
   });
 
   await app.register(todoRoutes);

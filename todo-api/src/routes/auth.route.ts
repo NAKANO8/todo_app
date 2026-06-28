@@ -17,8 +17,16 @@ const authBodySchema = {
 } as const;
 
 export async function authRoutes(app: FastifyInstance) {
-  app.post("/auth/login", { schema: { body: authBodySchema } }, AuthController.login);
-  app.post("/auth/register", { schema: { body: authBodySchema } }, AuthController.newRegister);
+  app.post("/auth/login", {
+    schema: { body: authBodySchema },
+    config: { rateLimit: { max: 10, timeWindow: "15 minutes" } },
+  }, AuthController.login);
+
+  app.post("/auth/register", {
+    schema: { body: authBodySchema },
+    config: { rateLimit: { max: 5, timeWindow: "1 hour" } },
+  }, AuthController.newRegister);
+
   app.post("/auth/logout", AuthController.logout);
   app.get("/auth/me", AuthController.me);
 }
