@@ -10,7 +10,7 @@ Make sure the following are installed before getting started:
 
 - [Node.js](https://nodejs.org/) v16 or later
 - [pnpm](https://pnpm.io/installation) v11 — `npm install -g pnpm`
-- [Docker](https://docs.docker.com/engine/install/) v20 or later
+- [Docker](https://docs.docker.com/engine/install/) v29 or later
 
 ## Setup
 
@@ -64,7 +64,7 @@ Another process is using port 3000 or 3001. Stop it, or update the ports in `doc
 MySQL takes ~10–20 seconds to initialize. Wait a moment and refresh the page.
 
 **Docker services won't start**
-Make sure Docker Desktop is running before any `pnpm docker:*` command.
+Make sure Docker is running before any `pnpm docker:*` command.
 
 ---
 
