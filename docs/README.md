@@ -8,7 +8,7 @@ A full-stack Todo application — create, complete, and delete personal todos wi
 
 Make sure the following are installed before getting started:
 
-- [Node.js](https://nodejs.org/) v16 or later
+- [Node.js](https://nodejs.org/) v20 or later
 - [pnpm](https://pnpm.io/installation) v11 — `npm install -g pnpm`
 - [Docker](https://docs.docker.com/engine/install/) v29 or later
 
