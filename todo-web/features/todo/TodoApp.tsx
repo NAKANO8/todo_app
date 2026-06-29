@@ -9,7 +9,6 @@ import { CompleteTodos } from "../../components/todo/CompleteTodos";
 
 import type { Todo } from "@/lib/types";
 import { fetchTodos, createTodo, updateTodo, deleteTodo } from "@/lib/api/todos";
-import styles from "./TodoApp.module.css";
 
 export default function TodoApp() {
   const [todoText, setTodoText] = useState("");
@@ -58,23 +57,28 @@ export default function TodoApp() {
   };
 
   return (
-    <div className={styles.page}>
-      <header className={styles.header}>
-        <div className={styles.logoLockup}>
+    <div className="min-h-screen bg-[#fafaf9] text-[#1c2024]">
+      <header className="flex items-center justify-between px-5 py-[18px] border-b border-[#e6e4df] bg-white">
+        <div className="flex items-center gap-2">
           <svg width="26" height="26" viewBox="0 0 36 36" fill="none">
             <rect x="1.5" y="1.5" width="33" height="33" rx="9" stroke="#2f6f5e" strokeWidth="2" />
             <path d="M11 18.5L15.5 23L25 12.5" stroke="#2f6f5e" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" />
           </svg>
-          <div className={styles.wordmark}>
-            Todo<span className={styles.wordmarkLight}> App</span>
+          <div className="text-base font-bold tracking-tight text-[#1c2024]">
+            Todo<span className="font-medium text-[#6b6f76]"> App</span>
           </div>
         </div>
         <form action="/api/auth/logout" method="POST">
-          <button type="submit" className={styles.logoutBtn}>ログアウト</button>
+          <button
+            type="submit"
+            className="text-[13px] font-semibold text-[#6b6f76] bg-[#f1efea] rounded-lg px-[14px] py-[7px] cursor-pointer hover:bg-[#e6e4df] hover:text-[#1c2024]"
+          >
+            ログアウト
+          </button>
         </form>
       </header>
 
-      <div className={styles.content}>
+      <div className="max-w-[440px] w-full mx-auto px-5 py-6 flex flex-col gap-3 md:max-w-[560px] xl:max-w-[680px]">
         <InputTodo
           todoText={todoText}
           onChange={(e) => setTodoText(e.target.value)}
@@ -83,7 +87,7 @@ export default function TodoApp() {
         />
 
         {isMaxLimitIncompleteTodos && (
-          <p style={{ color: "red", margin: 0 }}>登録できるTodoは5個までです</p>
+          <p className="text-red-500 text-sm m-0">登録できるTodoは5個までです</p>
         )}
 
         <IncompleteTodos

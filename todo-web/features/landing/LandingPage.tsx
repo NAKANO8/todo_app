@@ -28,27 +28,23 @@ function DeviceMockup() {
         </div>
         <div className={styles.deviceBody}>
           <div className={styles.toolbar}>
-            <div className={styles.pill}>ログアウト</div>
-          </div>
-          <div className={styles.toolbar}>
             <div className={styles.inputMock}>Todoを入力</div>
-            <div className={styles.pill}>追加</div>
+            <div className={styles.addBtn}>追加</div>
           </div>
-          <div className={styles.panel}>
-            <div className={styles.panelTitle}>未完了のTODO</div>
-            <div className={styles.task}>
-              <span className={styles.taskDot}>•</span>
-              <span>買い物リストを作る</span>
-              <span className={styles.miniBtn}>完了</span>
-              <span className={styles.miniBtn}>削除</span>
+          <div>
+            <div className={styles.sectionLabel}>未完了 <span>(1)</span></div>
+            <div className={styles.todoCard}>
+              <span className={styles.todoText}>買い物リストを作る</span>
+              <span className={styles.completeBtn}>完了</span>
+              <span className={styles.deleteBtn}>削除</span>
             </div>
           </div>
-          <div className={`${styles.panel} ${styles.panelDone}`}>
-            <div className={styles.panelTitle}>完了のTODO</div>
-            <div className={styles.task}>
-              <span className={styles.taskDot}>•</span>
-              <span>朝のミーティング資料</span>
-              <span className={styles.miniBtn}>戻す</span>
+          <div>
+            <div className={styles.separator} />
+            <div className={styles.sectionLabelDone}>完了済み <span>(1)</span></div>
+            <div className={styles.todoDoneCard}>
+              <span className={styles.todoDoneText}>朝のミーティング資料</span>
+              <span className={styles.backBtn}>戻す</span>
             </div>
           </div>
         </div>
