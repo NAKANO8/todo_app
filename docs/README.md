@@ -10,7 +10,7 @@ Make sure the following are installed before getting started:
 
 - [Node.js](https://nodejs.org/) v16 or later
 - [pnpm](https://pnpm.io/installation) v11 — `npm install -g pnpm`
-- [Docker Desktop](https://www.docker.com/products/docker-desktop/)
+- [Docker](https://docs.docker.com/engine/install/) v20 or later
 
 ## Setup
 
