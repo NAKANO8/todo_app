@@ -8,6 +8,7 @@
     "dev": "pnpm -r run dev",
     "build": "pnpm -r run build",
     "start": "pnpm -r run start",
+    "test": "pnpm -r --parallel run test",
     "docker:dev-init": "docker compose -f docker-compose.yml -f docker-compose.dev.yml up --build",
     "docker:dev": "docker compose -f docker-compose.yml -f docker-compose.dev.yml up",
     "docker:prod-init": "docker compose -f docker-compose.yml -f docker-compose.prod.yml build --build-arg NEXT_PUBLIC_API_BASE=http://localhost:3001 && docker compose -f docker-compose.yml -f docker-compose.prod.yml up",
