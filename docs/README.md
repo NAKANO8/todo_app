@@ -53,7 +53,8 @@ Make sure the following are installed before getting started:
 4. Mark todos as complete or delete them from the list
 
 <img src="screenshot-login.png" width="400" alt="Login screen" />
-<img src="screenshot-app.png" width="400" alt="Todo screen" />
+<img src="screenshot-register.png" width="400" alt="Register screen" />
+<img src="screenshot-app.png" width="700" alt="Todo screen" />
 
 ## Troubleshooting
 
