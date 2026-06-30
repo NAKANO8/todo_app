@@ -121,49 +121,99 @@
   padding: 5px 8px;
 }
 
-.panel {
-  border: 1px solid #a9cfc9;
-  border-radius: 10px;
-  padding: 10px 12px 12px;
-}
-
-.panelDone {
-  background: #c7e0db;
-}
-
-.panelTitle {
-  text-align: center;
+.addBtn {
   font-size: 10px;
-  font-weight: 700;
-  color: #5b6b68;
-  letter-spacing: 0.02em;
-  margin-bottom: 8px;
+  background: #2f6f5e;
+  color: #fff;
+  border-radius: 6px;
+  padding: 5px 8px;
+  flex-shrink: 0;
 }
 
-.task {
+.sectionLabel {
+  font-size: 9px;
+  font-weight: 600;
+  color: #9ca3af;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 4px;
+}
+
+.sectionLabel span {
+  color: #d1d5db;
+}
+
+.todoCard {
   display: flex;
   align-items: center;
-  gap: 6px;
-  font-size: 10.5px;
+  gap: 4px;
+  padding: 6px 8px;
+  border-radius: 6px;
+  background: #fff;
+  border: 1px solid #f3f4f6;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
+}
+
+.todoText {
+  flex: 1;
+  font-size: 10px;
   color: #1c2024;
 }
 
-.taskDot {
-  font-size: 10px;
-  color: #9a9da3;
+.completeBtn {
+  font-size: 8.5px;
+  color: #0f766e;
+  background: #f0fdfa;
+  border: 1px solid #ccfbf1;
+  border-radius: 4px;
+  padding: 2px 5px;
 }
 
-.task .miniBtn {
+.deleteBtn {
+  font-size: 8.5px;
+  color: #ef4444;
+  background: #fef2f2;
+  border: 1px solid #fee2e2;
+  border-radius: 4px;
+  padding: 2px 5px;
+}
+
+.separator {
+  border-top: 1px solid #e5e7eb;
+  margin: 6px 0 4px;
+}
+
+.sectionLabelDone {
   font-size: 9px;
-  background: #f1efea;
-  color: #6b6f76;
-  border-radius: 5px;
-  padding: 3px 7px;
-  margin-left: auto;
+  font-weight: 600;
+  color: #d1d5db;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 4px;
 }
 
-.task .miniBtn + .miniBtn {
-  margin-left: 4px;
+.todoDoneCard {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 8px;
+  border-radius: 6px;
+  background: #f9fafb;
+}
+
+.todoDoneText {
+  flex: 1;
+  font-size: 10px;
+  color: #9ca3af;
+  text-decoration: line-through;
+}
+
+.backBtn {
+  font-size: 8.5px;
+  color: #6b7280;
+  background: #f3f4f6;
+  border-radius: 4px;
+  padding: 2px 5px;
 }
 
 /* ── Auth buttons ── */
