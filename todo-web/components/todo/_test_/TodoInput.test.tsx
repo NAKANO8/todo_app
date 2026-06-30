@@ -1,15 +1,15 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, it, expect, vi } from "vitest";
-import { InputTodo } from "../InputTodo";
+import { TodoInput } from "../TodoInput";
 
-describe("InputTodo", () => {
+describe("TodoInput", () => {
   it("入力フィールドとボタンがレンダリングされる", () => {
     render(
-      <InputTodo
-        todoText=""
+      <TodoInput
+        inputValue=""
         onChange={vi.fn()}
-        onClick={vi.fn()}
+        onAdd={vi.fn()}
         disabled={false}
       />
     );
@@ -23,10 +23,10 @@ describe("InputTodo", () => {
     const onChange = vi.fn();
 
     render(
-      <InputTodo
-        todoText=""
+      <TodoInput
+        inputValue=""
         onChange={onChange}
-        onClick={vi.fn()}
+        onAdd={vi.fn()}
         disabled={false}
       />
     );
@@ -35,29 +35,29 @@ describe("InputTodo", () => {
     expect(onChange).toHaveBeenCalled();
   });
 
-  it("追加ボタンクリック時にonClickが呼ばれる", async () => {
+  it("追加ボタンクリック時にonAddが呼ばれる", async () => {
     const user = userEvent.setup();
-    const onClick = vi.fn();
+    const onAdd = vi.fn();
 
     render(
-      <InputTodo
-        todoText="テスト"
+      <TodoInput
+        inputValue="テスト"
         onChange={vi.fn()}
-        onClick={onClick}
+        onAdd={onAdd}
         disabled={false}
       />
     );
 
     await user.click(screen.getByRole("button", { name: "追加" }));
-    expect(onClick).toHaveBeenCalledOnce();
+    expect(onAdd).toHaveBeenCalledOnce();
   });
 
   it("disabled=trueのときボタンと入力が無効になる", () => {
     render(
-      <InputTodo
-        todoText=""
+      <TodoInput
+        inputValue=""
         onChange={vi.fn()}
-        onClick={vi.fn()}
+        onAdd={vi.fn()}
         disabled={true}
       />
     );

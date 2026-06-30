@@ -1,12 +1,12 @@
 import type { Todo } from '@/lib/types';
 
-type InCompleteTodoProps = {
+type ActiveTodosProps = {
   todos: Todo[];
-  onClickComplete: (id: number) => void;
-  onClickDelete: (id: number) => void;
+  onComplete: (id: number) => void;
+  onDelete: (id: number) => void;
 };
 
-export const IncompleteTodos = ({ todos, onClickComplete, onClickDelete }: InCompleteTodoProps) => {
+export const ActiveTodos = ({ todos, onComplete, onDelete }: ActiveTodosProps) => {
   if (todos.length === 0) return null;
 
   return (
@@ -19,13 +19,13 @@ export const IncompleteTodos = ({ todos, onClickComplete, onClickDelete }: InCom
           <li key={todo.id} className="flex items-center gap-2 px-3 py-2.5 rounded-lg bg-white border border-gray-100 shadow-sm">
             <span className="flex-1 text-sm text-[#1c2024]">{todo.title}</span>
             <button
-              onClick={() => onClickComplete(todo.id)}
+              onClick={() => onComplete(todo.id)}
               className="text-xs font-medium text-teal-700 bg-teal-50 hover:bg-teal-100 rounded-md px-2.5 py-1 border border-teal-100 cursor-pointer"
             >
               完了
             </button>
             <button
-              onClick={() => onClickDelete(todo.id)}
+              onClick={() => onDelete(todo.id)}
               className="text-xs font-medium text-red-500 bg-red-50 hover:bg-red-100 rounded-md px-2.5 py-1 border border-red-100 cursor-pointer"
             >
               削除
