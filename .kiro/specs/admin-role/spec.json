@@ -1,0 +1,22 @@
+{
+  "feature_name": "admin-role",
+  "created_at": "2026-07-01T16:19:29Z",
+  "updated_at": "2026-07-01T16:48:13Z",
+  "language": "ja",
+  "phase": "tasks-generated",
+  "approvals": {
+    "requirements": {
+      "generated": true,
+      "approved": true
+    },
+    "design": {
+      "generated": true,
+      "approved": true
+    },
+    "tasks": {
+      "generated": true,
+      "approved": false
+    }
+  },
+  "ready_for_implementation": false
+}
