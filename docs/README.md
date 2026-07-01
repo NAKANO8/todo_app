@@ -88,6 +88,8 @@ Monorepo with two packages (`todo-api`, `todo-web`) managed by pnpm workspaces.
 
 Auth is enforced in `middleware.ts` via a server-side call to `/auth/me` — no auth logic runs in the browser.
 
+See [database-schema.md](database-schema.md) for the ER diagram and table definitions.
+
 ## Acknowledgements
 
 The frontend component structure and state management patterns are based on [this Udemy course](https://www.udemy.com/share/103Fxl3@ti-ozwRuunuN5QtmPtep_Cp0dKS2d9fmTbEONOdKvhdYIg-m0x6zBEiwUF0H9D1b9A==/). The UI has been redesigned (Tailwind migration) and the backend (`todo-api`) — including authentication, session management, and the REST API — is fully original.
