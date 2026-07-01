@@ -3,55 +3,55 @@
 import { useEffect, useState } from "react";
 import { toast } from "react-toastify";
 
-import { InputTodo } from "../../components/todo/InputTodo";
-import { IncompleteTodos } from "../../components/todo/IncompleteTodos";
-import { CompleteTodos } from "../../components/todo/CompleteTodos";
+import { TodoInput } from "../../components/todo/TodoInput";
+import { ActiveTodos } from "../../components/todo/ActiveTodos";
+import { DoneTodos } from "../../components/todo/DoneTodos";
 
 import type { Todo } from "@/lib/types";
 import { fetchTodos, createTodo, updateTodo, deleteTodo } from "@/lib/api/todos";
 
 export default function TodoApp() {
-  const [todoText, setTodoText] = useState("");
+  const [inputValue, setInputValue] = useState("");
   const [todos, setTodos] = useState<Todo[]>([]);
 
   useEffect(() => {
     fetchTodos().then(setTodos).catch(console.error);
   }, []);
 
-  const incompleteTodos = todos.filter(t => t.status === 0);
-  const completeTodos = todos.filter(t => t.status === 1);
+  const activeTodos = todos.filter(t => t.status === 0);
+  const doneTodos = todos.filter(t => t.status === 1);
 
-  const isMaxLimitIncompleteTodos = incompleteTodos.length >= 5;
+  const isTodoLimitReached = activeTodos.length >= 5;
 
   useEffect(() => {
-    if (isMaxLimitIncompleteTodos) {
+    if (isTodoLimitReached) {
       toast.error("登録できるのは5個までです", {
         position: "top-center",
         autoClose: 2000,
         theme: "colored",
       });
     }
-  }, [isMaxLimitIncompleteTodos]);
+  }, [isTodoLimitReached]);
 
-  const onClickAdd = async () => {
-    if (todoText === "") return;
-    await createTodo(todoText);
+  const handleAdd = async () => {
+    if (inputValue === "") return;
+    await createTodo(inputValue);
     const latest = await fetchTodos();
     setTodos(latest);
-    setTodoText("");
+    setInputValue("");
   };
 
-  const onClickDelete = async (id: number) => {
+  const handleDelete = async (id: number) => {
     await deleteTodo(id);
     setTodos((prev) => prev.filter((t) => t.id !== id));
   };
 
-  const onClickComplete = async (id: number) => {
+  const handleComplete = async (id: number) => {
     await updateTodo(id, { status: 1 });
     setTodos((prev) => prev.map((t) => (t.id === id ? { ...t, status: 1 } : t)));
   };
 
-  const onClickBack = async (id: number) => {
+  const handleRestore = async (id: number) => {
     await updateTodo(id, { status: 0 });
     setTodos((prev) => prev.map((t) => (t.id === id ? { ...t, status: 0 } : t)));
   };
@@ -79,26 +79,26 @@ export default function TodoApp() {
       </header>
 
       <div className="max-w-[440px] w-full mx-auto px-5 py-6 flex flex-col gap-3 md:max-w-[560px] xl:max-w-[680px]">
-        <InputTodo
-          todoText={todoText}
-          onChange={(e) => setTodoText(e.target.value)}
-          onClick={onClickAdd}
-          disabled={isMaxLimitIncompleteTodos}
+        <TodoInput
+          inputValue={inputValue}
+          onChange={(e) => setInputValue(e.target.value)}
+          onAdd={handleAdd}
+          disabled={isTodoLimitReached}
         />
 
-        {isMaxLimitIncompleteTodos && (
+        {isTodoLimitReached && (
           <p className="text-red-500 text-sm m-0">登録できるTodoは5個までです</p>
         )}
 
-        <IncompleteTodos
-          todos={incompleteTodos}
-          onClickComplete={onClickComplete}
-          onClickDelete={onClickDelete}
+        <ActiveTodos
+          todos={activeTodos}
+          onComplete={handleComplete}
+          onDelete={handleDelete}
         />
 
-        <CompleteTodos
-          todos={completeTodos}
-          onClickBack={onClickBack}
+        <DoneTodos
+          todos={doneTodos}
+          onRestore={handleRestore}
         />
       </div>
     </div>

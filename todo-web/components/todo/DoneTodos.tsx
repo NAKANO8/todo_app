@@ -1,11 +1,11 @@
 import type { Todo } from '@/lib/types';
 
-type CompleteTodoProps = {
+type DoneTodosProps = {
   todos: Todo[];
-  onClickBack: (id: number) => void;
+  onRestore: (id: number) => void;
 };
 
-export const CompleteTodos = ({ todos, onClickBack }: CompleteTodoProps) => {
+export const DoneTodos = ({ todos, onRestore }: DoneTodosProps) => {
   if (todos.length === 0) return null;
 
   return (
@@ -19,7 +19,7 @@ export const CompleteTodos = ({ todos, onClickBack }: CompleteTodoProps) => {
           <li key={todo.id} className="flex items-center gap-2 px-3 py-2.5 rounded-lg bg-gray-50">
             <span className="flex-1 text-sm text-gray-400 line-through">{todo.title}</span>
             <button
-              onClick={() => onClickBack(todo.id)}
+              onClick={() => onRestore(todo.id)}
               className="text-xs font-medium text-gray-500 bg-gray-100 hover:bg-gray-200 rounded-md px-2.5 py-1 cursor-pointer"
             >
               戻す
