@@ -53,7 +53,8 @@ Make sure the following are installed before getting started:
 4. Mark todos as complete or delete them from the list
 
 <img src="screenshot-login.png" width="400" alt="Login screen" />
-<img src="screenshot-app.png" width="400" alt="Todo screen" />
+<img src="screenshot-register.png" width="400" alt="Register screen" />
+<img src="screenshot-app.png" width="700" alt="Todo screen" />
 
 ## Troubleshooting
 
@@ -86,3 +87,7 @@ Monorepo with two packages (`todo-api`, `todo-web`) managed by pnpm workspaces.
 - **`todo-web`** — Next.js frontend; auth calls proxied through Next.js API routes so the browser never calls Fastify directly
 
 Auth is enforced in `middleware.ts` via a server-side call to `/auth/me` — no auth logic runs in the browser.
+
+## Acknowledgements
+
+The frontend component structure and state management patterns are based on [this Udemy course](https://www.udemy.com/share/103Fxl3@ti-ozwRuunuN5QtmPtep_Cp0dKS2d9fmTbEONOdKvhdYIg-m0x6zBEiwUF0H9D1b9A==/). The UI has been redesigned (Tailwind migration) and the backend (`todo-api`) — including authentication, session management, and the REST API — is fully original.
