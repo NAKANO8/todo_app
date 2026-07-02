@@ -1,6 +1,6 @@
 # Implementation Plan
 
-- [ ] 1. Foundation: usersテーブルへのroleスキーマ追加
+- [x] 1. Foundation: usersテーブルへのroleスキーマ追加
   - `users`テーブルの定義に`role`（許容値は`admin`と`member`のみ、既定値`member`、NOT NULL）を追加する
   - 将来新しいロール値（`group_leader`等）を追加する際、既存データを書き換えずに値集合を拡張できる形にする
   - 稼働中の本番データベースには自動反映されないため、同等の変更を本番へ一度だけ手動適用する必要がある旨を記録する（デプロイ手順として扱い、本タスク一覧には含めない）
