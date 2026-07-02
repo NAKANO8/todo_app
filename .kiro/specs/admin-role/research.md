@@ -4,7 +4,7 @@
 - **Feature**: `admin-role`
 - **Discovery Scope**: Extension（既存の認証機能への追加）
 - **Key Findings**:
-  - `/auth/register`・`/auth/login`の`authBodySchema`は`additionalProperties: false`を既に設定しており、未定義フィールド（`role`含む）を含むリクエストはAJVによって400で拒否される。ロールの自己申告による特権昇格対策（Req 2.2）は、新規コード追加なしで既存の検証がカバーする。
+  - `/auth/register`・`/auth/login`の`authBodySchema`は`additionalProperties: false`を既に設定している。ロールの自己申告による特権昇格対策（Req 2.2）は、新規コード追加なしで既存の検証がカバーする。**【タスク4.1実装時に訂正】** 当初「未定義フィールドを含むリクエストは400で拒否される」と想定していたが誤り。Fastify 5のデフォルトAJV設定は`removeAdditional: true`のため、実際には未定義フィールドが黙って削除された上でリクエストは201で成功する。`role`がDBに届かない、という肝心のセキュリティ特性は変わらず満たされる。
   - `mysql/init.sql`はDockerの`docker-entrypoint-initdb.d`経由で「空のデータディレクトリに対してのみ」実行される。稼働中の本番DB（`to-do.hikawata.com`）には自動反映されないため、既存データへの列追加は別途手動のALTER TABLEが必要。
   - MySQLは8.0（`docker-compose.yml`/`docker-compose.prod.yml`で確認）。既定値付きの列追加（`ADD COLUMN ... DEFAULT ...`）はMySQL 8.0のInstant DDL（`ALGORITHM=INSTANT`）で行内データの書き換えを伴わずに完了するため、既存ログイン・セッションへの影響はない。
   - フロントエンド（`todo-web/middleware.ts`）は`/auth/me`のレスポンスボディを一切読まず、HTTPステータスのみで認証判定している。よって本機能はフロントエンドに変更を要しない。
@@ -26,8 +26,8 @@
 ### 特権昇格防止の実現方法（Req 2.2）
 - **Context**: 登録リクエストに`role`値が含まれていても、それを無視して`member`を割り当てる必要がある
 - **Sources Consulted**: `todo-api/src/routes/auth.route.ts`（`authBodySchema`）
-- **Findings**: `authBodySchema`は`additionalProperties: false`かつ`email`/`password`のみを許可プロパティとして定義済み。`role`を含むリクエストボディはFastify/AJVのスキーマ検証で400エラーとなり、ハンドラに到達しない。
-- **Implications**: 新規の除去ロジックは不要。既存スキーマがより厳格な形（無視ではなく拒否）でRequirement 2.2の意図（自己申告ロールが適用されない）を満たす。この差異は設計判断としてdesign.mdに明記する。
+- **Findings**: `authBodySchema`は`additionalProperties: false`かつ`email`/`password`のみを許可プロパティとして定義済み。当初「`role`を含むリクエストボディはFastify/AJVのスキーマ検証で400エラーとなり、ハンドラに到達しない」と想定していたが、タスク4.1の実装時にこれは誤りと判明した。Fastify 5のデフォルトAJV設定（`removeAdditional: true`）により、実際には`role`のような未定義フィールドは黙って取り除かれ、リクエストは201で成功する。
+- **Implications**: 新規の除去ロジックは不要（この点は変わらず）。ただし既存スキーマが実現しているのは「拒否」ではなく「無視」であり、これはRequirement 2.2の文言「その値を無視し、常に`member`を割り当てる」とむしろ正確に一致する。design.mdの該当箇所も訂正済み。
 
 ## Architecture Pattern Evaluation
 | Option | Description | Strengths | Risks / Limitations | Notes |
@@ -52,10 +52,10 @@
 - **Context**: Requirement 2.2
 - **Alternatives Considered**:
   1. コントローラ/サービス層で`role`フィールドを明示的に無視するコードを追加
-  2. 既存の`additionalProperties: false`による拒否をそのまま利用
-- **Selected Approach**: 既存スキーマ検証（拒否）をそのまま利用し、新規コードを追加しない
+  2. 既存の`additionalProperties: false`による検証をそのまま利用
+- **Selected Approach**: 既存スキーマ検証をそのまま利用し、新規コードを追加しない
 - **Rationale**: 既存の検証が既にこの脅威を閉じている。新しい無視ロジックを追加すると、同じ懸念に対して2つの防御層ができ、意図がぼやける。
-- **Trade-offs**: Requirement 2.2の文言は「無視して`member`を割り当てる」だが、実際の挙動は「リクエスト全体を400で拒否する」。結果として自己申告ロールが適用されないという意図は満たすが、文言とは厳密には異なる。design.mdの該当箇所に明記する。
+- **Trade-offs**: 【訂正】当初は「Requirement 2.2の文言は『無視して`member`を割り当てる』だが、実際の挙動は『リクエスト全体を400で拒否する』ため文言と厳密には異なる」という差異をTrade-offとして記録していたが、これはFastifyの実際の挙動（`removeAdditional: true`により黙って無視・201で成功）を誤解していたことによる誤記だった。実際には文言とのズレは存在せず、実装通りの挙動である。この件が判明した経緯・影響範囲調査（`removeAdditional`をアプリ全体で`false`にするかの検討）は`todos-app-internal`のロードマップに別途記録した。
 - **Follow-up**: なし。
 
 ### Decision: 既存アカウントへのロール付与は`DEFAULT`句のみで実現し、専用マイグレーションツールは導入しない

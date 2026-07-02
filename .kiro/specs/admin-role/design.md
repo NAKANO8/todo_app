@@ -61,7 +61,7 @@
 - `todo-api/src/repositories/auth.repository.ts` — `UserRole`型の定義、`User`型に`role`を追加、`findById`のSELECT句に`role`を追加（`findByEmail`は`SELECT *`のため変更不要、`createUser`はDB既定値に委ねるため変更不要）
 - `todo-api/src/services/auth.service.ts` — 変更なし（`AuthRepository`が返す値をそのまま透過するため）
 - `todo-api/src/controllers/auth.controller.ts` — `me`ハンドラのレスポンスに`role: user.role`を追加
-- `todo-api/src/routes/_test_/auth.api.test.ts` — `/auth/me`のロール値検証、登録リクエストへの`role`混入時の拒否確認を追加
+- `todo-api/src/routes/_test_/auth.api.test.ts` — `/auth/me`のロール値検証、登録リクエストへの`role`混入時に無視されることの確認を追加
 - 本番データベースへの一回限りの適用: `ALTER TABLE users ADD COLUMN role ENUM('admin','member') NOT NULL DEFAULT 'member' AFTER password_hash;`（コードの一部として管理するファイルは作らず、デプロイ手順として実行する。詳細は Migration Strategy 参照）
 
 > このスペックはファイル追加を伴わない小規模拡張のため、新しいディレクトリ構造は発生しない。
@@ -153,7 +153,7 @@ ALTER TABLE users
 ## Error Handling
 
 ### Error Categories and Responses
-**User Errors (4xx)**: 登録リクエストに未定義フィールド（`role`含む）が含まれる場合、既存の`authBodySchema`（`additionalProperties: false`）により400を返す。これによりRequirement 2.2の意図（自己申告ロールが適用されない）を満たすが、文言上の「無視して登録を継続する」ではなく「リクエスト自体を拒否する」という、より安全側の実現方法であることに注意（詳細は`research.md`）。
+**訂正（実装時に判明）**: 登録リクエストに未定義フィールド（`role`含む）が含まれる場合、既存の`authBodySchema`（`additionalProperties: false`）が適用されるが、Fastify 5のデフォルトAJV設定は`removeAdditional: true`のため、**リクエストは400で拒否されず、未定義フィールドが黙って取り除かれた上で201で成功する**。これは実装時（タスク4.1）に発覚し、当初の想定（「リクエスト自体を拒否する」）は誤りだった。結果としてRequirement 2.2の文言「その値を無視し、常に`member`を割り当てる」の方が、実際の挙動をより正確に表している。セキュリティ上の実害はない（`role`はDBに一切届かない）。詳細は`research.md`参照。
 
 ### Security Considerations
 - 新規アカウントは常に最小権限（`member`）から開始する（Requirement 2.1）。
@@ -167,7 +167,7 @@ ALTER TABLE users
 
 ### Integration Tests（`auth.api.test.ts`拡張）
 - 新規登録後、ログインして`GET /auth/me`を呼ぶと、レスポンスに`role: "member"`が含まれる（Requirement 2.1, 4.1）
-- `POST /auth/register`のペイロードに`role: "admin"`を含めると400が返る（既存の`additionalProperties: false`によりRequirement 2.2を満たすことの確認）
+- `POST /auth/register`のペイロードに`role: "admin"`を含めても201で登録が成功し、かつ`GET /auth/me`で取得したロールは`member`のままである（未定義フィールドが黙って無視され、Requirement 2.2を満たすことの確認。当初400を想定していたが実装時にFastifyの`removeAdditional: true`挙動により誤りと判明）
 - （運用確認・自動テスト対象外）本番相当データに対する`ALTER TABLE`適用後、既存アカウントでのログイン・`/auth/me`が引き続き200で成功することを手動確認する（Requirement 3.1, 3.2）
 
 ## Migration Strategy
