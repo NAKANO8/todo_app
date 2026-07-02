@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
+import bcrypt from "bcrypt";
 import { buildApp, app } from "../../app";
 import { pool } from "../../db/client";
 
@@ -6,18 +7,22 @@ const TEST_EMAIL = "auth_test@example.com";
 const TEST_PASSWORD = "Testpassword1";
 const ROLE_DEFAULT_TEST_EMAIL = "auth_role_default_test@example.com";
 const ROLE_ESCALATION_TEST_EMAIL = "auth_role_escalation_test@example.com";
+const PRE_EXISTING_ACCOUNT_EMAIL = "auth_pre_existing_account_test@example.com";
+const PRE_EXISTING_ACCOUNT_PASSWORD = "Testpassword1";
 
 beforeAll(async () => {
   await buildApp();
   await (pool as any).query("DELETE FROM users WHERE email = ?", [TEST_EMAIL]);
   await (pool as any).query("DELETE FROM users WHERE email = ?", [ROLE_DEFAULT_TEST_EMAIL]);
   await (pool as any).query("DELETE FROM users WHERE email = ?", [ROLE_ESCALATION_TEST_EMAIL]);
+  await (pool as any).query("DELETE FROM users WHERE email = ?", [PRE_EXISTING_ACCOUNT_EMAIL]);
 });
 
 afterAll(async () => {
   await (pool as any).query("DELETE FROM users WHERE email = ?", [TEST_EMAIL]);
   await (pool as any).query("DELETE FROM users WHERE email = ?", [ROLE_DEFAULT_TEST_EMAIL]);
   await (pool as any).query("DELETE FROM users WHERE email = ?", [ROLE_ESCALATION_TEST_EMAIL]);
+  await (pool as any).query("DELETE FROM users WHERE email = ?", [PRE_EXISTING_ACCOUNT_EMAIL]);
   await pool.end();
 });
 
@@ -95,6 +100,35 @@ describe("Auth API", () => {
 
       expect(meRes.statusCode).toBe(200);
       expect(meRes.json()).toMatchObject({ email: ROLE_ESCALATION_TEST_EMAIL, role: "member" });
+    });
+  });
+
+  describe("導入前から存在するアカウントの継続利用", () => {
+    it("role を指定せずに直接挿入されたアカウントは既定の member ロールを持ち、ログインおよび /auth/me が引き続き成功する", async () => {
+      const password_hash = await bcrypt.hash(PRE_EXISTING_ACCOUNT_PASSWORD, 10);
+      await (pool as any).query(
+        "INSERT INTO users (email, password_hash) VALUES (?, ?)",
+        [PRE_EXISTING_ACCOUNT_EMAIL, password_hash]
+      );
+
+      const loginRes = await app.inject({
+        method: "POST",
+        url: "/auth/login",
+        payload: { email: PRE_EXISTING_ACCOUNT_EMAIL, password: PRE_EXISTING_ACCOUNT_PASSWORD },
+      });
+      expect(loginRes.statusCode).toBe(200);
+      const setCookie = loginRes.headers["set-cookie"];
+      const cookieStr = Array.isArray(setCookie) ? setCookie[0] : setCookie;
+      const sessionCookie = cookieStr?.split(";")[0] ?? "";
+
+      const meRes = await app.inject({
+        method: "GET",
+        url: "/auth/me",
+        headers: { cookie: sessionCookie },
+      });
+
+      expect(meRes.statusCode).toBe(200);
+      expect(meRes.json()).toMatchObject({ email: PRE_EXISTING_ACCOUNT_EMAIL, role: "member" });
     });
   });
 
