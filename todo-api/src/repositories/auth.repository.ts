@@ -6,10 +6,13 @@ type CreateUserInput = {
   password_hash: string;
 }
 
+export type UserRole = 'admin' | 'member';
+
 export type User = RowDataPacket & {
   id: number;
   email: string;
   password_hash: string;
+  role: UserRole;
 };
 
 export const AuthRepository = {
@@ -23,7 +26,7 @@ export const AuthRepository = {
 
   async findById(id: number) {
     const [rows] = await pool.query<User[]>(
-      'SELECT id, email FROM users WHERE id = ?',
+      'SELECT id, email, role FROM users WHERE id = ?',
       [id]
     );
     return rows[0] ?? null;
