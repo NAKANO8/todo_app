@@ -13,6 +13,8 @@ const authBodySchema = {
       pattern: "^(?=.*[A-Z])(?=.*\\d)[A-Za-z\\d]{8,}$",
     },
   },
+  // Also blocks unexpected fields like `role` from /auth/register — do not relax this
+  // without an explicit allowlist, or self-registration can smuggle in a privileged role.
   additionalProperties: false,
 } as const;
 
