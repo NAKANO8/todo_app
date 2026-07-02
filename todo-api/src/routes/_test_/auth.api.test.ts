@@ -86,7 +86,7 @@ describe("Auth API", () => {
       });
 
       expect(res.statusCode).toBe(200);
-      expect(res.json()).toMatchObject({ email: TEST_EMAIL });
+      expect(res.json()).toMatchObject({ email: TEST_EMAIL, role: "member" });
     });
   });
 
