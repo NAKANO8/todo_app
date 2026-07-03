@@ -1,5 +1,7 @@
-import "dotenv/config";
+import { config } from "dotenv";
 import mysql from "mysql2/promise";
+
+config({ quiet: true });
 
 export const pool = mysql.createPool({
   host: process.env.DB_HOST,

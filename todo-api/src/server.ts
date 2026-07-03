@@ -1,5 +1,6 @@
 // server.ts
-import "dotenv/config";
+import { config } from "dotenv";
+config({ quiet: true });
 import { buildApp } from "./app";
 import { pool } from "./db/client";
 
