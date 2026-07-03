@@ -18,6 +18,10 @@ services:
       - db-data-dev:/var/lib/mysql
       - ./mysql:/docker-entrypoint-initdb.d
 
+  redis:
+    ports:
+      - "6379:6379"
+
   web:
     command: pnpm run dev
     ports:

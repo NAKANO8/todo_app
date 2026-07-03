@@ -1,7 +1,7 @@
 # Implementation Plan
 
 - [ ] 1. Foundation: Redis基盤のセットアップ
-- [ ] 1.1 Docker Composeとtodo-apiの環境変数にRedisサービスを追加する
+- [x] 1.1 Docker Composeとtodo-apiの環境変数にRedisサービスを追加する
   - イメージとヘルスチェックを備えたRedisサービスを追加し、dev用のポート公開・prod用のネットワーク配線をそれぞれ行う
   - dev/prod/test向けの環境設定ファイルすべてにRedis接続先（ホスト・ポート）を追加し、ユニットテスト・結合テストの実行環境からもRedisに到達できるようにする
   - Observable: dev環境で起動するとRedisコンテナが立ち上がりヘルスチェックが通り、テスト実行環境からも同じRedisに接続できる
@@ -90,3 +90,7 @@
   - Observable: インスタンスBが、インスタンスAで作成したセッションを有効なセッションとして認識し、インスタンスA経由での無効化実行後はインスタンスB経由のリクエストでも同じセッションが未認証になることを確認できる
   - _Requirements: 4.1, 4.2, 4.3_
   - _Depends: 8.1_
+
+## Implementation Notes
+- 1.1: `.github/workflows/ci.yml`にはまだ`redis`サービスが無く、テストジョブの環境変数もMySQL専用でRedis到達性が無い。Redisに依存するテスト(2.1, 3, 5, 8.1, 8.2, 9)を追加するタスクで、CIワークフローへの`redis`サービス追加も合わせて対応する必要がある。
+- サンドボックス環境ではDocker/実Redisが使えないため、単体・結合テストは`ioredis-mock`（devDependency、388 stars・2025年10月最終リリース、SADD/SREM/SMEMBERS/GET/SET/DEL対応確認済み）を使って検証する。実Redisでの最終確認は別途手元環境で行う。
