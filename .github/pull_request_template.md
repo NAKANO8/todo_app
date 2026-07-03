@@ -22,4 +22,14 @@ Brief description of what this PR changes and why.
 ## Design notes (optional)
 
 <!-- Fill this in only if this PR involved a non-trivial design decision.
-Why this approach, and what alternatives were considered and rejected? -->
+If there are multiple decisions, repeat the block below once per decision (### <decision name>).
+
+### <decision name>
+
+Why did you choose this?
+
+What other options were considered?
+
+Why did you throw them away?
+
+What are the drawbacks of this option? -->
