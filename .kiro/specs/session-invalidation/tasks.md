@@ -6,7 +6,7 @@
   - dev/prod/test向けの環境設定ファイルすべてにRedis接続先（ホスト・ポート）を追加し、ユニットテスト・結合テストの実行環境からもRedisに到達できるようにする
   - Observable: dev環境で起動するとRedisコンテナが立ち上がりヘルスチェックが通り、テスト実行環境からも同じRedisに接続できる
   - _Requirements: 1.1, 4.1_
-- [ ] 1.2 todo-apiにRedis接続を登録する
+- [x] 1.2 todo-apiにRedis接続を登録する
   - 公式のRedis接続プラグインを追加し、環境変数から読み取った接続先でtodo-api全体から共有できる接続を確立する
   - Observable: アプリ起動時にRedis接続が確立し、共有クライアント経由でコマンドを実行できる
   - _Requirements: 1.1, 4.1_
