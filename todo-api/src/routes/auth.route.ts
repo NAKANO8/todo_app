@@ -13,8 +13,11 @@ const authBodySchema = {
       pattern: "^(?=.*[A-Z])(?=.*\\d)[A-Za-z\\d]{8,}$",
     },
   },
-  // Also blocks unexpected fields like `role` from /auth/register — do not relax this
+  // Also prevents unexpected fields like `role` from /auth/register — do not relax this
   // without an explicit allowlist, or self-registration can smuggle in a privileged role.
+  // Note: Fastify 5's default AJV config sets removeAdditional: true, so unknown fields
+  // (e.g. `role`) are silently stripped before the handler runs — the request still
+  // succeeds (2xx), it does NOT reject with 400. Don't assume a 400 here.
   additionalProperties: false,
 } as const;
 
