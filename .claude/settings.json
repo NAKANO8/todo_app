@@ -6,6 +6,8 @@
       "Bash(git add *)",
       "Bash(pnpm test *)",
       "Bash(pnpm exec vitest *)",
+      "Bash(pnpm exec tsc *)",
+      "Bash(pnpm build *)",
       "Edit",
       "WebFetch"
     ],
