@@ -52,15 +52,22 @@ export const AuthController = {
       const userId = req.session.userId;
       const sessionId = req.session.sessionId;
       await getSessionRepository().untrackSession(userId, sessionId);
-      req.session.destroy((err) => {
-        if (err) {
-          reply.status(500).send({ message: 'Internal Server Error' });
-        } else {
-          reply.clearCookie('sessionId', cookieClearOptions).send({ message: 'logout success' });
-        }
-      });
+
+      try {
+        await new Promise<void>((resolve, reject) => {
+          req.session.destroy((err) => {
+            if (err) reject(err);
+            else resolve();
+          });
+        });
+      } catch (err) {
+        req.log.error(err, 'logout failed');
+        return reply.status(500).send({ message: 'Internal Server Error' });
+      }
+
+      return reply.clearCookie('sessionId', cookieClearOptions).send({ message: 'logout success' });
     } else {
-      reply.clearCookie('sessionId', cookieClearOptions).send({ message: 'not logged in' });
+      return reply.clearCookie('sessionId', cookieClearOptions).send({ message: 'not logged in' });
     }
   },
 
