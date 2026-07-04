@@ -93,4 +93,5 @@
 
 ## Implementation Notes
 - 1.1: `.github/workflows/ci.yml`にはまだ`redis`サービスが無く、テストジョブの環境変数もMySQL専用でRedis到達性が無い。Redisに依存するテスト(2.1, 3, 5, 8.1, 8.2, 9)を追加するタスクで、CIワークフローへの`redis`サービス追加も合わせて対応する必要がある。
+  - **追記**: 未対応のまま放置していたところ、CI上で`auth.api.test.ts`/`todos.api.test.ts`（`buildApp()`経由で実際の`@fastify/redis`接続を要求する既存の結合テスト）が`beforeAll`で10秒タイムアウトして実際に失敗した。`REDIS_HOST`未設定時のフォールバック先`127.0.0.1:6379`にCI上でRedisが存在しないため、`@fastify/redis`のプラグイン登録が接続待ちのままハングしていた。`mysql`サービスと同じパターンで`redis`サービス（`redis:7-alpine`、`redis-cli ping`ヘルスチェック）と`REDIS_HOST`/`REDIS_PORT`環境変数を追加して解消した。「後で対応すればいい」と流した既知のギャップが、実際にCIを壊す形で顕在化した一例。
 - サンドボックス環境ではDocker/実Redisが使えないため、単体・結合テストは`ioredis-mock`（devDependency、388 stars・2025年10月最終リリース、SADD/SREM/SMEMBERS/GET/SET/DEL対応確認済み）を使って検証する。実Redisでの最終確認は別途手元環境で行う。
