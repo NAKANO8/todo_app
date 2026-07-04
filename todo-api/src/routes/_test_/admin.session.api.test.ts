@@ -45,6 +45,12 @@ async function buildTestApp(redisClient: RedisMock) {
     await repository.trackSession(Number(req.query.userId), req.session.sessionId);
     reply.send({ ok: true });
   });
+  // 自己ターゲット無効化後、この呼び出し自身のCookieが本当に無効化されたかを
+  // 検証するための最小限の確認用ルート
+  app.get("/test/whoami", async (req, reply) => {
+    if (!req.session.userId) return reply.status(401).send({ message: "Unauthorized" });
+    return reply.send({ userId: req.session.userId });
+  });
   await app.register(adminSessionRoutes);
   return { app, repository };
 }
@@ -121,6 +127,16 @@ describe("DELETE /admin/sessions/:userId", () => {
     expect(res.statusCode).toBe(200);
     expect(res.json()).toEqual({ invalidatedCount: 1 });
     expect(await repository.listSessionIds(1)).toEqual([]);
+
+    // 回帰確認: 自己ターゲット無効化の直後、同じCookieで別のリクエストを送ると
+    // 未認証として扱われる(=@fastify/sessionのonSendフックによる自動再保存で
+    // 復活していない)ことを確認する
+    const whoamiRes = await app.inject({
+      method: "GET",
+      url: "/test/whoami",
+      headers: { cookie: cookieHeader(adminLogin) },
+    });
+    expect(whoamiRes.statusCode).toBe(401);
 
     await app.close();
   });
