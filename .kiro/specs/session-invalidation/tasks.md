@@ -1,24 +1,24 @@
 # Implementation Plan
 
 - [ ] 1. Foundation: Redis基盤のセットアップ
-- [ ] 1.1 Docker Composeとtodo-apiの環境変数にRedisサービスを追加する
+- [x] 1.1 Docker Composeとtodo-apiの環境変数にRedisサービスを追加する
   - イメージとヘルスチェックを備えたRedisサービスを追加し、dev用のポート公開・prod用のネットワーク配線をそれぞれ行う
   - dev/prod/test向けの環境設定ファイルすべてにRedis接続先（ホスト・ポート）を追加し、ユニットテスト・結合テストの実行環境からもRedisに到達できるようにする
   - Observable: dev環境で起動するとRedisコンテナが立ち上がりヘルスチェックが通り、テスト実行環境からも同じRedisに接続できる
   - _Requirements: 1.1, 4.1_
-- [ ] 1.2 todo-apiにRedis接続を登録する
+- [x] 1.2 todo-apiにRedis接続を登録する
   - 公式のRedis接続プラグインを追加し、環境変数から読み取った接続先でtodo-api全体から共有できる接続を確立する
   - Observable: アプリ起動時にRedis接続が確立し、共有クライアント経由でコマンドを実行できる
   - _Requirements: 1.1, 4.1_
   - _Depends: 1.1_
 
 - [ ] 2. Core: Redisセッションストアの自前実装
-- [ ] 2.1 (P) セッションプラグインが要求するストア契約を満たすRedisセッションストアを自前実装する
+- [x] 2.1 (P) セッションプラグインが要求するストア契約を満たすRedisセッションストアを自前実装する
   - セッションの取得・保存・破棄の3操作のみを実装し、既存の外部ストアパッケージを採用しなかった理由と、実装が満たす契約の内容を、実装を知らない読み手にも分かる形でコード冒頭に明記する
   - Observable: 単体テストで、保存したセッションが取得でき、破棄した後は取得結果が「セッションなし」になることを確認できる
   - _Requirements: 1.1, 4.1, 4.3_
   - _Boundary: RedisSessionStore_
-- [ ] 2.2 セッションプラグインの既定ストアを2.1のRedisストアに切り替える
+- [x] 2.2 セッションプラグインの既定ストアを2.1のRedisストアに切り替える
   - セッションプラグインの登録設定を変更し、既定のインメモリストアをRedisストアに置き換える
   - Observable: ログイン後にtodo-apiプロセスを再起動しても、Redis上にセッションデータが残っており再起動後も認証状態が維持される（既定のインメモリストアでは再起動で消えていた挙動が変わる）
   - _Requirements: 1.1, 4.1_
@@ -90,3 +90,8 @@
   - Observable: インスタンスBが、インスタンスAで作成したセッションを有効なセッションとして認識し、インスタンスA経由での無効化実行後はインスタンスB経由のリクエストでも同じセッションが未認証になることを確認できる
   - _Requirements: 4.1, 4.2, 4.3_
   - _Depends: 8.1_
+
+## Implementation Notes
+- 1.1: `.github/workflows/ci.yml`にはまだ`redis`サービスが無く、テストジョブの環境変数もMySQL専用でRedis到達性が無い。Redisに依存するテスト(2.1, 3, 5, 8.1, 8.2, 9)を追加するタスクで、CIワークフローへの`redis`サービス追加も合わせて対応する必要がある。
+  - **追記**: 未対応のまま放置していたところ、CI上で`auth.api.test.ts`/`todos.api.test.ts`（`buildApp()`経由で実際の`@fastify/redis`接続を要求する既存の結合テスト）が`beforeAll`で10秒タイムアウトして実際に失敗した。`REDIS_HOST`未設定時のフォールバック先`127.0.0.1:6379`にCI上でRedisが存在しないため、`@fastify/redis`のプラグイン登録が接続待ちのままハングしていた。`mysql`サービスと同じパターンで`redis`サービス（`redis:7-alpine`、`redis-cli ping`ヘルスチェック）と`REDIS_HOST`/`REDIS_PORT`環境変数を追加して解消した。「後で対応すればいい」と流した既知のギャップが、実際にCIを壊す形で顕在化した一例。
+- サンドボックス環境ではDocker/実Redisが使えないため、単体・結合テストは`ioredis-mock`（devDependency、388 stars・2025年10月最終リリース、SADD/SREM/SMEMBERS/GET/SET/DEL対応確認済み）を使って検証する。実Redisでの最終確認は別途手元環境で行う。

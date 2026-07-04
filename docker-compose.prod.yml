@@ -32,3 +32,9 @@ services:
     networks:
       - app-net
     restart: always
+
+  redis:
+    image: redis:7-alpine
+    networks:
+      - app-net
+    restart: always

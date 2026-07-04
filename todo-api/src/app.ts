@@ -6,6 +6,8 @@ import session from "@fastify/session";
 import formbody from "@fastify/formbody";
 import ajvFormats from "ajv-formats";
 import rateLimit from "@fastify/rate-limit";
+import redis from "@fastify/redis";
+import { RedisSessionStore } from "./session/redisSessionStore";
 import { todoRoutes } from "./routes/todos.route";
 import { authRoutes } from "./routes/auth.route";
 
@@ -53,8 +55,20 @@ export async function buildApp() {
 
   await app.register(formbody);
 
+  // todo-api全体で共有する単一のRedis接続。ioredisベース、公式プラグイン。
+  // 接続先は1.1で追加した環境変数（dev/prod/test各設定ファイル）から読み取る。
+  // REDIS_PORTが未設定だとNumber(undefined)がNaNになり、ioredisが不正なポートとして
+  // 同期的に例外を投げてプロセスごとクラッシュしうるため、標準ポート6379へフォールバックする。
+  await app.register(redis, {
+    host: process.env.REDIS_HOST || "127.0.0.1",
+    port: Number(process.env.REDIS_PORT) || 6379,
+  });
+
+  // 既定のインメモリMemoryStoreをRedisバックエンドに切り替える。プロセス再起動やスケールアウトで
+  // セッションが失われず、管理者による強制無効化(このspec)が全インスタンスに反映される。
   await app.register(session, {
     secret: process.env.SESSION_SECRET!,
+    store: new RedisSessionStore(app.redis, "sess:"),
     cookie: {
       secure: process.env.COOKIE_SECURE === "true",
       httpOnly: true,
