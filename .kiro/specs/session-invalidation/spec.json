@@ -1,9 +1,9 @@
 {
   "feature_name": "session-invalidation",
   "created_at": "2026-07-03T13:51:51Z",
-  "updated_at": "2026-07-04T10:15:00Z",
+  "updated_at": "2026-07-04T13:52:00Z",
   "language": "ja",
-  "phase": "tasks-generated",
+  "phase": "implemented",
   "approvals": {
     "requirements": {
       "generated": true,
