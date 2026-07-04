@@ -7,6 +7,7 @@ import formbody from "@fastify/formbody";
 import ajvFormats from "ajv-formats";
 import rateLimit from "@fastify/rate-limit";
 import redis from "@fastify/redis";
+import { RedisSessionStore } from "./session/redisSessionStore";
 import { todoRoutes } from "./routes/todos.route";
 import { authRoutes } from "./routes/auth.route";
 
@@ -63,8 +64,11 @@ export async function buildApp() {
     port: Number(process.env.REDIS_PORT) || 6379,
   });
 
+  // 既定のインメモリMemoryStoreをRedisバックエンドに切り替える。プロセス再起動やスケールアウトで
+  // セッションが失われず、管理者による強制無効化(このspec)が全インスタンスに反映される。
   await app.register(session, {
     secret: process.env.SESSION_SECRET!,
+    store: new RedisSessionStore(app.redis, "sess:"),
     cookie: {
       secure: process.env.COOKIE_SECURE === "true",
       httpOnly: true,
