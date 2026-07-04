@@ -97,3 +97,9 @@
 - サンドボックス環境ではDocker/実Redisが使えないため、単体・結合テストは`ioredis-mock`（devDependency、388 stars・2025年10月最終リリース、SADD/SREM/SMEMBERS/GET/SET/DEL対応確認済み）を使って検証する。実Redisでの最終確認は別途手元環境で行う。
 - `ioredis-mock`はインスタンス間でバックエンドを共有するため、複数テストで同じuserId/sessionIdを使う場合は`beforeEach`で`flushall()`する必要がある（4.1/4.2実装時に判明）。
 - 4.1/4.2: `SessionRepository`は`app.redis`に依存するためモジュール読み込み時点では構築できず、`repositories/sessionRepositoryInstance.ts`で`buildApp()`内から一度だけ初期化するシングルトンホルダーを新設した。レビューで「`app.decorate`の方がFastify流だが、これも妥当」と評価。また`logout`の`untrackSession`呼び出しにはtry/catchが無く、失敗時は`login`等と違うエラー形状（Fastify既定の500）になる点が非ブロッキングの指摘として残っている（followupの余地あり）。
+- **実Docker/実Redis環境での手動動作確認で発見・修正した重大な不具合（`/kiro-validate-impl`後）**:
+  - **現象**: 本物のRedisに切り替えて`docker compose`で起動すると、認証済みでの`/todos`系リクエストが`FastifyError: Reply was already sent`／`ERR_HTTP_HEADERS_SENT`で500になる。
+  - **原因**: `todos.controller.ts`の全5ハンドラ（getAll/getById/create/update/delete）と`auth.controller.ts`の`logout`が、成功時に`reply.send(...)`を呼ぶだけで`return`していなかった（このspec以前からの既存パターン）。既定の同期的な`MemoryStore`ではセッション保存(`@fastify/session`のonSendフック)が同tick内で完了するため問題が表面化しなかったが、本物のRedis（非同期I/O）に切り替えたことで、reply送信とセッション保存処理の間で競合が起き顕在化した。
+  - **なぜテストで検出できなかったか**: `ioredis-mock`はマイクロタスク相当のタイミングで解決するため、この不具合を再現できない。実Redisは本物のソケットI/O（マクロタスク相当）で解決するため、モックでは原理的に検出不可能だった。`setImmediate`で実I/Oタイミングを疑似再現する`session.realIoTiming.regression.test.ts`を追加し、同種の不具合の再発を防ぐ静的ガード（`return reply...`になっているかのソースチェック）も入れた。
+  - **修正**: 上記6箇所すべてに`return`を追加。`logout`は`req.session.destroy`のコールバックをPromise化してtry/catchで包み、`login`等と同じエラー形状に統一（4.1/4.2レビューの非ブロッキング指摘も合わせて解消）。
+  - **教訓**: モックベースのテストは「非同期処理が本当に非同期I/Oを介するタイミング特性」を再現できないことがあり、実インフラでの動作確認でしか見つからないクラスのバグが存在する。

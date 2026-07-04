@@ -7,7 +7,7 @@ export const TodoController = {
   async getAll(req: FastifyRequest, reply: FastifyReply) {
     const userId = req.session.userId!;
     const todos = await TodoService.getAll(userId);
-    reply.send(todos);
+    return reply.send(todos);
   },
 
   async getById(
@@ -17,7 +17,7 @@ export const TodoController = {
     const userId = req.session.userId!;
     try {
       const todo = await TodoService.getById(Number(req.params.id), userId);
-      reply.send(todo);
+      return reply.send(todo);
     } catch (err) {
       if (err instanceof AppError) {
         return reply.code(err.statusCode).send({ message: err.message });
@@ -34,7 +34,7 @@ export const TodoController = {
     const userId = req.session.userId!;
     try {
       await TodoService.create(req.body.title, userId);
-      reply.code(201).send({ message: "created" });
+      return reply.code(201).send({ message: "created" });
     } catch (err) {
       if (err instanceof AppError) {
         return reply.code(err.statusCode).send({ message: err.message });
@@ -54,7 +54,7 @@ export const TodoController = {
     const userId = req.session.userId!;
     try {
       await TodoService.update(Number(req.params.id), userId, req.body);
-      reply.send({ message: "updated" });
+      return reply.send({ message: "updated" });
     } catch (err) {
       if (err instanceof AppError) {
         return reply.code(err.statusCode).send({ message: err.message });
@@ -71,7 +71,7 @@ export const TodoController = {
     const userId = req.session.userId!;
     try {
       await TodoService.delete(Number(req.params.id), userId);
-      reply.send({ message: "deleted" });
+      return reply.send({ message: "deleted" });
     } catch (err) {
       if (err instanceof AppError) {
         return reply.code(err.statusCode).send({ message: err.message });
