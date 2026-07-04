@@ -8,6 +8,8 @@ import ajvFormats from "ajv-formats";
 import rateLimit from "@fastify/rate-limit";
 import redis from "@fastify/redis";
 import { RedisSessionStore } from "./session/redisSessionStore";
+import { SessionRepository } from "./repositories/session.repository";
+import { initSessionRepository } from "./repositories/sessionRepositoryInstance";
 import { todoRoutes } from "./routes/todos.route";
 import { authRoutes } from "./routes/auth.route";
 
@@ -66,9 +68,10 @@ export async function buildApp() {
 
   // 既定のインメモリMemoryStoreをRedisバックエンドに切り替える。プロセス再起動やスケールアウトで
   // セッションが失われず、管理者による強制無効化(このspec)が全インスタンスに反映される。
+  const redisSessionStore = new RedisSessionStore(app.redis, "sess:");
   await app.register(session, {
     secret: process.env.SESSION_SECRET!,
-    store: new RedisSessionStore(app.redis, "sess:"),
+    store: redisSessionStore,
     cookie: {
       secure: process.env.COOKIE_SECURE === "true",
       httpOnly: true,
@@ -76,6 +79,10 @@ export async function buildApp() {
       domain: process.env.COOKIE_DOMAIN,
     },
   });
+
+  // userId → sessionId の逆引き索引。ログイン/自己ログアウト(auth.controller.ts)と
+  // 管理者向け強制無効化(このspecの後続タスク)の双方から参照される。
+  initSessionRepository(new SessionRepository(app.redis, redisSessionStore));
 
   await app.register(rateLimit, {
     global: true,
