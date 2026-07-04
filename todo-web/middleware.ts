@@ -4,7 +4,9 @@ const FASTIFY_API = process.env.API_INTERNAL_BASE ?? "http://localhost:3001";
 
 const PUBLIC_PATHS = ["/login", "/register", "/api/auth"];
 
-const AUTH_CACHE_TTL_MS = 30_000;
+// 管理者によるセッション強制無効化(session-invalidationスペック)が反映されるまでの遅延を
+// 数秒程度に抑えるため、既定の30秒から短縮している。
+const AUTH_CACHE_TTL_MS = 3_000;
 const authCache = new Map<string, { ok: boolean; expires: number }>();
 
 function extractSessionId(cookieHeader: string): string | null {
