@@ -34,6 +34,7 @@
 // このクラスでは設定しない。
 
 import type * as fastifyRedis from "@fastify/redis";
+import type { Session } from "fastify";
 
 // 実運用では `@fastify/redis` が提供する ioredis クライアント（`app.redis`）を、
 // テストでは構造的に同じ get/set/del を持つ `ioredis-mock` のインスタンスを注入できるよう、
@@ -59,7 +60,7 @@ export class RedisSessionStore {
 
   get(
     sessionId: string,
-    callback: (err: Error | null, session?: object) => void
+    callback: (err: Error | null, session?: Session | null) => void
   ): void {
     this.client
       .get(this.key(sessionId))
@@ -68,14 +69,14 @@ export class RedisSessionStore {
           callback(null, undefined);
           return;
         }
-        callback(null, JSON.parse(raw));
+        callback(null, JSON.parse(raw) as Session);
       })
       .catch((err: Error) => callback(err));
   }
 
   set(
     sessionId: string,
-    session: object,
+    session: Session,
     callback: (err: Error | null) => void
   ): void {
     this.client
