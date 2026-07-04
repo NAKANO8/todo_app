@@ -98,7 +98,7 @@ graph TB
 |-------|------------------|-----------------|-------|
 | Backend / Session Store | 自前実装（`@fastify/redis`のioredisクライアントを利用） | `@fastify/session`の`store`オプションに渡す`Store`実装（`get/set/destroy`のみ）を自前で提供 | 既定の`MemoryStore`を置き換える。外部Storeアダプタ（`fastify-session-redis-store`等）は保守状況が悪く不採用（`research.md`参照） |
 | Backend / Redis接続 | `@fastify/redis`（公式、ioredisベース） | `todo-api`全体で単一のRedis接続を共有 | 2026年1月時点でも継続的にメンテナンスされている |
-| Data / Storage | Redis（新規追加） | セッション実体（`fastify-session-redis-store`管理）と`userId → sessionId`逆引き索引（Set）を保持 | 新しい実行時依存。既存のMySQLとは別のデータストア |
+| Data / Storage | Redis（新規追加） | セッション実体（自前実装の`RedisSessionStore`管理）と`userId → sessionId`逆引き索引（Set）を保持 | 新しい実行時依存。既存のMySQLとは別のデータストア |
 | Infrastructure / Runtime | Docker Compose `redis`サービス | dev/prod双方でRedisインスタンスを提供 | 既存の`db`サービスと同様のヘルスチェックパターンを踏襲 |
 | Frontend | `todo-web/middleware.ts`（既存、TTL値のみ変更） | 認証結果キャッシュのTTLを短縮し、無効化反映までの遅延を許容範囲に収める | 新規ライブラリ追加なし |
 
@@ -252,7 +252,7 @@ interface Store {
 - Inbound: SessionService — 無効化処理からの一覧取得・破棄・索引クリア (P0)
 - Inbound: AuthController — ログイン/自己ログアウトからの索引更新 (P0)
 - External: `ioredis`クライアント（`@fastify/redis`経由） (P0)
-- External: `fastify-session-redis-store`の`Store`インスタンス（`destroySession`委譲先） (P0)
+- External: 自前実装の`RedisSessionStore`インスタンス（`destroySession`委譲先） (P0)
 
 **Contracts**: Service [x] / API [ ] / Event [ ] / Batch [ ] / State [x]
 
@@ -351,7 +351,7 @@ interface SessionService {
 本機能は新しいSQLテーブルを追加しない。データはすべてRedis上のキー・バリュー構造として表現される。
 
 ### Physical Data Model（Key-Value Store）
-- セッション実体キー: `fastify-session-redis-store`が内部的に管理する（`<prefix>` + `sessionId`形式）。値は既存の`{ authenticated, userId }`を含むセッションデータのシリアライズ形式。TTLは現状設定しない（既存のCookie側の「有効期限なし」という挙動を踏襲し、本specでは有効期限の追加は扱わない）。
+- セッション実体キー: 自前実装の`RedisSessionStore`が内部的に管理する（`<prefix>` + `sessionId`形式）。値は既存の`{ authenticated, userId }`を含むセッションデータのシリアライズ形式。TTLは現状設定しない（既存のCookie側の「有効期限なし」という挙動を踏襲し、本specでは有効期限の追加は扱わない）。
 - 逆引き索引キー: `user-sessions:<userId>` → `sessionId`文字列のRedis Set。TTLは設定せず、自己ログアウト時に該当1件を削除、管理者無効化時に全体を削除することで明示的に管理する。
 
 ## Error Handling

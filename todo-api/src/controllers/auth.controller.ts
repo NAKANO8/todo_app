@@ -2,6 +2,7 @@ import { FastifyRequest, FastifyReply } from "fastify";
 import { LoginBody } from "../types/todo";
 import { AuthService } from "../services/auth.service";
 import { AppError } from "../errors/AppError";
+import { getSessionRepository } from "../repositories/sessionRepositoryInstance";
 
 export const AuthController = {
   async login(
@@ -11,6 +12,7 @@ export const AuthController = {
     try {
       const user = await AuthService.login(req.body);
       req.session.userId = user.id;
+      await getSessionRepository().trackSession(user.id, req.session.sessionId);
       return reply.send({ message: 'login success' });
     } catch (err) {
       if (err instanceof AppError) {
@@ -47,6 +49,9 @@ export const AuthController = {
     };
 
     if (req.session.userId) {
+      const userId = req.session.userId;
+      const sessionId = req.session.sessionId;
+      await getSessionRepository().untrackSession(userId, sessionId);
       req.session.destroy((err) => {
         if (err) {
           reply.status(500).send({ message: 'Internal Server Error' });
