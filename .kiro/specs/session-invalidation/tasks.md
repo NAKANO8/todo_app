@@ -33,12 +33,12 @@
   - _Depends: 2.1_
 
 - [ ] 4. Core: ログイン・自己ログアウトでの索引維持
-- [ ] 4.1 ログイン時に発行されたセッションを逆引き索引へ登録する
+- [x] 4.1 ログイン時に発行されたセッションを逆引き索引へ登録する
   - ログイン成功時に、そのユーザーのセッション一覧へ今回発行されたセッションを追加する
   - Observable: ログイン直後、そのユーザーの索引に今回発行されたセッションが含まれることを確認できる
   - _Requirements: 2.2_
   - _Depends: 3_
-- [ ] 4.2 自己ログアウト時に該当セッションのみを索引から除去する
+- [x] 4.2 自己ログアウト時に該当セッションのみを索引から除去する
   - 自己ログアウト処理で、既存のセッション破棄と合わせて、そのセッションだけを索引から取り除く
   - Observable: 2つのセッションを持つユーザーが片方だけログアウトすると、索引にはもう片方のセッションだけが残ることを確認できる
   - _Requirements: 2.1, 2.2_
@@ -94,3 +94,5 @@
 ## Implementation Notes
 - 1.1: `.github/workflows/ci.yml`にはまだ`redis`サービスが無く、テストジョブの環境変数もMySQL専用でRedis到達性が無い。Redisに依存するテスト(2.1, 3, 5, 8.1, 8.2, 9)を追加するタスクで、CIワークフローへの`redis`サービス追加も合わせて対応する必要がある。
 - サンドボックス環境ではDocker/実Redisが使えないため、単体・結合テストは`ioredis-mock`（devDependency、388 stars・2025年10月最終リリース、SADD/SREM/SMEMBERS/GET/SET/DEL対応確認済み）を使って検証する。実Redisでの最終確認は別途手元環境で行う。
+- `ioredis-mock`はインスタンス間でバックエンドを共有するため、複数テストで同じuserId/sessionIdを使う場合は`beforeEach`で`flushall()`する必要がある（4.1/4.2実装時に判明）。
+- 4.1/4.2: `SessionRepository`は`app.redis`に依存するためモジュール読み込み時点では構築できず、`repositories/sessionRepositoryInstance.ts`で`buildApp()`内から一度だけ初期化するシングルトンホルダーを新設した。レビューで「`app.decorate`の方がFastify流だが、これも妥当」と評価。また`logout`の`untrackSession`呼び出しにはtry/catchが無く、失敗時は`login`等と違うエラー形状（Fastify既定の500）になる点が非ブロッキングの指摘として残っている（followupの余地あり）。
