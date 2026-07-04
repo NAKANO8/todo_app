@@ -1,0 +1,44 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(cd *)",
+      "Bash(cat *)",
+      "Bash(git add *)",
+      "Bash(pnpm test *)",
+      "Bash(pnpm exec vitest *)",
+      "Bash(pnpm exec tsc *)",
+      "Bash(pnpm build *)",
+      "Edit",
+      "WebFetch"
+    ],
+    "ask": [
+      "Bash(git commit *)",
+      "Bash(git push *)",
+      "Bash(python3 *)",
+      "Bash(cat todo-api/.env.dev)",
+      "Bash(cat todo-api/.env.prod)",
+      "Bash(cat todo-api/.env.test)",
+      "Bash(cat todo-web/.env)",
+      "Bash(cat ~/.ssh/*)",
+      "Bash(cat ~/.aws/*)",
+      "Bash(cat ~/.bashrc)",
+      "Bash(cat ~/.zshrc)",
+      "Bash(cat ~/.cloudflared/*)",
+      "Bash(cat ~/.docker/config.json)",
+      "Bash(cat ~/.npmrc)",
+      "Bash(cat ~/.git-credentials)",
+      "Edit(todo-api/.env.dev)",
+      "Edit(todo-api/.env.prod)",
+      "Edit(todo-api/.env.test)",
+      "Edit(todo-web/.env)",
+      "Edit(~/.ssh/**)",
+      "Edit(~/.aws/**)",
+      "Edit(~/.bashrc)",
+      "Edit(~/.zshrc)",
+      "Edit(~/.cloudflared/**)",
+      "Edit(~/.docker/config.json)",
+      "Edit(~/.npmrc)",
+      "Edit(~/.git-credentials)"
+    ]
+  }
+}
