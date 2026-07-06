@@ -94,5 +94,36 @@ export const AuthRepository = {
     );
     return result.affectedRows;
   },
+
+  // 対象(userId)のアカウント状態を newStatus に更新する。updateRole と同じ理由・
+  // 同じ回避策（派生テーブルでのEXISTSラップ）で、不変条件「有効な管理者が
+  // 最低1人残る」をUPDATE文のWHERE句に一本化してアトミックに強制する。
+  // 判定は対象行(id)基準であり、誰が要求したか(自分自身か第三者か)は問わない
+  // (requesterIdはこの判定に不要。自己ターゲット時のセッション破棄判定は
+  // コントローラー層の別タスクの責務)。
+  //
+  // - newStatus === 'active'（再有効化）: 無条件で許可
+  // - newStatus === 'disabled'（無効化）: 対象(id)を除いて、他に有効な管理者
+  //   (role='admin' AND status='active') が1人以上いる場合のみ許可
+  //
+  // updated_at = NOW() を明示的にSETに含めることで、status の値そのものが
+  // 変化しない冪等な再送（例: 既にdisabledの行へ再度 newStatus='disabled' を
+  // 送る）でも affectedRows >= 1 を得られるようにする（updateRole と同じ理由）。
+  async updateStatus(userId: number, newStatus: AccountStatus): Promise<number> {
+    // updateRole と同じMySQL 8.0の制約(ERROR 1093)を回避するため、EXISTSサブ
+    // クエリを派生テーブルでラップしている。詳細はupdateRoleのコメント参照。
+    const [result] = await pool.query<ResultSetHeader>(
+      `UPDATE users
+       SET status = ?, updated_at = NOW()
+       WHERE id = ?
+         AND (? = 'active' OR EXISTS (
+           SELECT 1 FROM (
+             SELECT id FROM users WHERE role = 'admin' AND status = 'active' AND id <> ?
+           ) AS other_active_admins
+         ))`,
+      [newStatus, userId, newStatus, userId]
+    );
+    return result.affectedRows;
+  },
 }
 

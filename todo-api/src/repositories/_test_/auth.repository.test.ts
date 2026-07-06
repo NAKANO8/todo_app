@@ -14,44 +14,80 @@ const ROLE_TEST_EMAILS = [
   "auth_repo_role_test_promote_member@example.com",
 ];
 
+const STATUS_TEST_EMAILS = [
+  "auth_repo_status_test_sole_admin@example.com",
+  "auth_repo_status_test_admin_a@example.com",
+  "auth_repo_status_test_admin_b@example.com",
+  "auth_repo_status_test_disabled_peer_admin@example.com",
+  "auth_repo_status_test_reenable_sole_admin@example.com",
+  "auth_repo_status_test_resend_member@example.com",
+];
+
 afterAll(async () => {
   await (pool as any).query("DELETE FROM users WHERE email = ?", [TEST_EMAIL]);
   await (pool as any).query("DELETE FROM users WHERE email = ?", [TEST_EMAIL_FINDALL]);
   for (const email of ROLE_TEST_EMAILS) {
     await (pool as any).query("DELETE FROM users WHERE email = ?", [email]);
   }
+  for (const email of STATUS_TEST_EMAILS) {
+    await (pool as any).query("DELETE FROM users WHERE email = ?", [email]);
+  }
   await pool.end();
 });
 
-// updateRole の不変条件チェックは「対象(id)を除いて、他に有効な管理者
-// (role='admin' AND status='active') が存在するか」をシステム全体で判定する
-// (design.md AdminUserService Invariants節)。そのため「対象が唯一の有効な管理者」
-// というシナリオを決定的に再現するには、テスト対象以外の既存の有効な管理者
-// (実開発DBに存在し得る本物の管理者アカウント等)を一時的に無効化し、
-// テスト終了後に元の状態へ確実に復元する必要がある。
+// updateRole/updateStatus の不変条件チェックは「対象(id)を除いて、他に有効な
+// 管理者 (role='admin' AND status='active') が存在するか」をシステム全体で
+// 判定する (design.md AdminUserService Invariants節)。そのため「対象が唯一の
+// 有効な管理者」というシナリオを決定的に再現するには、テスト対象以外の既存の
+// 有効な管理者 (実開発DBに存在し得る本物の管理者アカウント等) を一時的に
+// 無効化する必要がある。
+//
+// これを「実際にUPDATEしてコミットし、後で元に戻す」方式で行うと、Vitestが
+// テストファイルごとに別プロセス/別コネクションプールで並行実行する都合上、
+// このコミット～復元の間の一時的な無効化状態を、無関係な別ファイル
+// (db/_test_/usersSchema.test.ts の「既存行はすべて status='active'」という
+// 要件3.2チェックなど) が自分のコネクションから観測してしまい、フレーキーに
+// 失敗する（実測: 連続6回中2回失敗）。
+//
+// そこで、無効化とその検証（run() 内の AuthRepository 呼び出しを含む）を
+// 「専用コネクション上の、最後まで一度もコミットされないトランザクション」
+// として実行する。
+// - InnoDBのMVCCにより、コミットされていない変更は他のコネクション（別
+//   ファイルが使う別のプール/コネクション）の通常のSELECTには一切見えない。
+//   よって usersSchema.test.ts 側が本物の管理者行を「一時的に無効化された
+//   状態」で観測することは構造的に発生し得ない。
+// - run() の実行中だけ、AuthRepository が内部で使う `pool.query` をこの
+//   専用コネクションの `query` に差し替える。AuthRepository のコード自体は
+//   変更しない（相変わらず `pool.query(...)` を呼ぶだけ）が、その呼び出しが
+//   今だけ同じトランザクションに参加することで、AuthRepository の呼び出しも
+//   自分自身がまだコミットしていない無効化を正しく観測できる（同一
+//   コネクション内では自分の未コミットの書き込みは常に見える）。
+// - 最後は必ず ROLLBACK する。実アカウントの行は一度もコミットされないため、
+//   元の値へ戻す処理は不要（そもそも一度も確定変更していない）。
+// - try/finally で必ず pool.query を元に戻してからロールバック・release
+//   する。ここを崩すと、以降の（このファイル内の）テストが誤って専用
+//   コネクションに向いたままになってしまう。
 async function withOnlyActiveAdminBeing(
   soleAdminId: number,
   run: () => Promise<void>
 ) {
-  const [rows] = await (pool as any).query(
-    "SELECT id, status FROM users WHERE role = 'admin' AND status = 'active' AND id <> ?",
-    [soleAdminId]
-  );
-  const others = rows as { id: number; status: string }[];
+  const conn = await (pool as any).getConnection();
+  const originalQuery = pool.query.bind(pool);
   try {
-    for (const other of others) {
-      await (pool as any).query("UPDATE users SET status = 'disabled' WHERE id = ?", [
-        other.id,
-      ]);
-    }
+    await conn.beginTransaction();
+
+    await conn.query(
+      "UPDATE users SET status = 'disabled' WHERE role = 'admin' AND status = 'active' AND id <> ?",
+      [soleAdminId]
+    );
+
+    (pool as any).query = conn.query.bind(conn);
+
     await run();
   } finally {
-    for (const other of others) {
-      await (pool as any).query("UPDATE users SET status = ? WHERE id = ?", [
-        other.status,
-        other.id,
-      ]);
-    }
+    (pool as any).query = originalQuery;
+    await conn.rollback();
+    conn.release();
   }
 }
 
@@ -219,6 +255,139 @@ describe("AuthRepository", () => {
     it("存在しない userId を対象にした場合、affectedRows は 0 になる", async () => {
       const nonExistentUserId = 999_999_999;
       const affectedRows = await AuthRepository.updateRole(nonExistentUserId, "member");
+      expect(affectedRows).toBe(0);
+    });
+  });
+
+  describe("updateStatus", () => {
+    it("唯一の有効な管理者を disabled にしようとすると affectedRows は 0 になり、status は active のまま変化しない", async () => {
+      const soleAdminId = await createFixtureUser(
+        "auth_repo_status_test_sole_admin@example.com",
+        "admin",
+        "active"
+      );
+
+      await withOnlyActiveAdminBeing(soleAdminId, async () => {
+        const affectedRows = await AuthRepository.updateStatus(soleAdminId, "disabled");
+        expect(affectedRows).toBe(0);
+
+        const found = await AuthRepository.findById(soleAdminId);
+        expect(found!.status).toBe("active");
+      });
+    });
+
+    it("他に有効な管理者が存在する場合、管理者を disabled にすると affectedRows は 1 になり status が更新される", async () => {
+      const adminAId = await createFixtureUser(
+        "auth_repo_status_test_admin_a@example.com",
+        "admin",
+        "active"
+      );
+      const adminBId = await createFixtureUser(
+        "auth_repo_status_test_admin_b@example.com",
+        "admin",
+        "active"
+      );
+
+      // adminB がもう1人の有効な管理者(adminA)なので、adminA の無効化は許可される
+      const affectedRows = await AuthRepository.updateStatus(adminAId, "disabled");
+      expect(affectedRows).toBe(1);
+
+      const found = await AuthRepository.findById(adminAId);
+      expect(found!.status).toBe("disabled");
+
+      // 冪等な再送: 既にdisabledへの無効化が完了済みの状態へ同じ値(disabled)を
+      // 再送しても、updated_at の強制更新により affectedRows は 1 のまま
+      // (対象なし・不変条件違反と誤認しない)
+      const resendAffectedRows = await AuthRepository.updateStatus(adminAId, "disabled");
+      expect(resendAffectedRows).toBe(1);
+
+      // adminB は操作されていないので有効な管理者のまま
+      const adminB = await AuthRepository.findById(adminBId);
+      expect(adminB!.role).toBe("admin");
+      expect(adminB!.status).toBe("active");
+
+      // このテストの成功パス自体が adminA を disabled へ実コミットしている
+      // (updateStatus はトランザクションでラップしていない通常のプールを
+      // 使うため)。afterAll でのファイル末尾クリーンアップまで disabled の
+      // まま放置すると、並行実行される別ファイル
+      // (db/_test_/usersSchema.test.ts の「既存行は全て active」チェック等)
+      // がこの行を disabled のまま観測し得るため、このテスト自身の終了前に
+      // 実際に active へ戻す。
+      await (pool as any).query("UPDATE users SET status = 'active' WHERE id = ?", [
+        adminAId,
+      ]);
+    });
+
+    it("第三者操作でも、対象が唯一の有効な管理者であれば無効化は拒否される（requesterの概念を使わないtarget基準の判定）。無効化済みの管理者は保護対象の母数に含まれない", async () => {
+      const soleActiveAdminId = await createFixtureUser(
+        "auth_repo_status_test_reenable_sole_admin@example.com",
+        "admin",
+        "active"
+      );
+      const disabledAdminId = await createFixtureUser(
+        "auth_repo_status_test_disabled_peer_admin@example.com",
+        "admin",
+        "disabled"
+      );
+
+      await withOnlyActiveAdminBeing(soleActiveAdminId, async () => {
+        const affectedRows = await AuthRepository.updateStatus(
+          soleActiveAdminId,
+          "disabled"
+        );
+        expect(affectedRows).toBe(0);
+
+        const found = await AuthRepository.findById(soleActiveAdminId);
+        expect(found!.status).toBe("active");
+      });
+
+      // 無効化済みの管理者は保護対象の母数に含まれないことの確認用に
+      // 作成したのみなので、そのまま削除対象にする
+      await (pool as any).query("DELETE FROM users WHERE id = ?", [disabledAdminId]);
+    });
+
+    it("唯一の管理者であっても、disabled から active への再有効化は無条件に許可される", async () => {
+      const soleAdminId = await createFixtureUser(
+        "auth_repo_status_test_resend_member@example.com",
+        "admin",
+        "disabled"
+      );
+
+      await withOnlyActiveAdminBeing(soleAdminId, async () => {
+        // soleAdminId 自身は現時点で disabled なので、この時点でシステムに
+        // 有効な管理者は0人だが、再有効化(active)方向には最後の管理者
+        // チェックを適用しない
+        const affectedRows = await AuthRepository.updateStatus(soleAdminId, "active");
+        expect(affectedRows).toBe(1);
+
+        const found = await AuthRepository.findById(soleAdminId);
+        expect(found!.status).toBe("active");
+
+        // 冪等な再送: 既にactiveへの再有効化が完了済みの状態へ同じ値(active)を
+        // 再送しても、updated_at の強制更新により affectedRows は 1 のまま
+        const resendAffectedRows = await AuthRepository.updateStatus(
+          soleAdminId,
+          "active"
+        );
+        expect(resendAffectedRows).toBe(1);
+      });
+
+      // このテストの成功パス（再有効化）は withOnlyActiveAdminBeing の
+      // トランザクション内 (最後に必ず ROLLBACK される) で実行しているため、
+      // 実際にコミットされている行は fixture 作成時点の status='disabled'
+      // のままである。afterAll でのファイル末尾クリーンアップまで disabled
+      // のまま放置すると、並行実行される別ファイル
+      // (db/_test_/usersSchema.test.ts の「既存行は全て active」チェック等)
+      // がこの行を disabled のまま観測し得るため、このテスト自身の終了前に
+      // 実際に active へ戻す。
+      await (pool as any).query("UPDATE users SET status = 'active' WHERE id = ?", [
+        soleAdminId,
+      ]);
+    });
+
+    it("存在しない userId を対象にした場合、affectedRows は 0 になる", async () => {
+      const nonExistentUserId = 999_999_999;
+      const affectedRows = await AuthRepository.updateStatus(nonExistentUserId, "disabled");
       expect(affectedRows).toBe(0);
     });
   });
