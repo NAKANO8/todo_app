@@ -99,3 +99,4 @@
 - `docs/database-schema.md`のER図・テーブル定義更新（`role`・`status`の反映）は非コードのドキュメント作業のため、本タスク一覧には含めない。1.1と合わせて別途対応すること。
 - **デプロイ順序の注意（design.md参照）**: 1.1のマイグレーション（本番DBへの`status`カラム追加）は、2.1を含む新アプリコードのデプロイより先に（最低でも同時に）適用すること。ログイン処理が無条件に`status`を読むため、カラムが存在しない状態で新コードが先に動くと、管理者機能に限らず全ユーザーのログインが失敗する。デプロイ手順（CD）側の対応が必要な場合は別途チケット化する。
 - 5.1で検証する「対象がちょうど2人の管理者で相互に降格させ合う」ケースは、1.3/1.4で実装するアトミックな更新（対象行基準・`updated_at`明示によるaffectedRows整合）が正しく動作していることが前提。1.3/1.4のレビュー時にこの観点を含めること。
+- **1.3実装時に判明**: design.mdのSQL案（`EXISTS (SELECT 1 FROM users WHERE ...)`が更新対象と同じテーブルを参照する形）はMySQL 8.0で`ERROR 1093: You can't specify target table 'users' for update in FROM clause`になり実行不可。サブクエリを導出テーブル（`SELECT 1 FROM (SELECT id FROM users WHERE ...) AS other_active_admins`）で包む標準的な回避策で対応済み（判定ロジック自体は不変）。1.4の`updateStatus`でも同じ回避策を使うこと。
