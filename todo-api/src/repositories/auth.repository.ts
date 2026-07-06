@@ -7,12 +7,21 @@ type CreateUserInput = {
 }
 
 export type UserRole = 'admin' | 'member';
+export type AccountStatus = 'active' | 'disabled';
 
 export type User = RowDataPacket & {
   id: number;
   email: string;
   password_hash: string;
   role: UserRole;
+  status: AccountStatus;
+};
+
+export type UserSummary = RowDataPacket & {
+  id: number;
+  email: string;
+  role: UserRole;
+  status: AccountStatus;
 };
 
 export const AuthRepository = {
@@ -26,10 +35,17 @@ export const AuthRepository = {
 
   async findById(id: number) {
     const [rows] = await pool.query<User[]>(
-      'SELECT id, email, role FROM users WHERE id = ?',
+      'SELECT id, email, role, status FROM users WHERE id = ?',
       [id]
     );
     return rows[0] ?? null;
+  },
+
+  async findAll() {
+    const [rows] = await pool.query<UserSummary[]>(
+      'SELECT id, email, role, status FROM users'
+    );
+    return rows;
   },
 
   async createUser({ email, password_hash }: CreateUserInput) {
