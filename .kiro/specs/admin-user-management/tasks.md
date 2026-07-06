@@ -41,7 +41,7 @@
   - _Requirements: 6.1, 6.2_
   - _Boundary: AdminGuard_
 
-- [ ] 2.3 (P) ユーザー一覧・ロール変更・アカウント状態変更のサービスを実装する
+- [x] 2.3 (P) ユーザー一覧・ロール変更・アカウント状態変更のサービスを実装する
   - 一覧取得、ロール変更、アカウント状態変更（無効化・再有効化）の業務ロジックを実装する。無効化する場合は既存のセッション強制無効化機能を呼び出し、それが例外を投げた場合は状態変更を取り消さずに例外をそのまま呼び出し元へ伝える
   - 唯一の管理者に対する降格・無効化要求（自分自身に対する要求・他の管理者に対する要求のいずれも）が拒否されることを確認できる
   - Observable: 通常のユーザーに対する一覧取得・ロール変更・無効化・再有効化がそれぞれ意図した結果を返すことを確認できる
@@ -100,3 +100,4 @@
 - **デプロイ順序の注意（design.md参照）**: 1.1のマイグレーション（本番DBへの`status`カラム追加）は、2.1を含む新アプリコードのデプロイより先に（最低でも同時に）適用すること。ログイン処理が無条件に`status`を読むため、カラムが存在しない状態で新コードが先に動くと、管理者機能に限らず全ユーザーのログインが失敗する。デプロイ手順（CD）側の対応が必要な場合は別途チケット化する。
 - 5.1で検証する「対象がちょうど2人の管理者で相互に降格させ合う」ケースは、1.3/1.4で実装するアトミックな更新（対象行基準・`updated_at`明示によるaffectedRows整合）が正しく動作していることが前提。1.3/1.4のレビュー時にこの観点を含めること。
 - **1.3実装時に判明**: design.mdのSQL案（`EXISTS (SELECT 1 FROM users WHERE ...)`が更新対象と同じテーブルを参照する形）はMySQL 8.0で`ERROR 1093: You can't specify target table 'users' for update in FROM clause`になり実行不可。サブクエリを導出テーブル（`SELECT 1 FROM (SELECT id FROM users WHERE ...) AS other_active_admins`）で包む標準的な回避策で対応済み（判定ロジック自体は不変）。1.4の`updateStatus`でも同じ回避策を使うこと。
+- **2.3実装時に判明**: design.mdの`AdminUserServiceType`コード例・シーケンス図は`changeRole(requesterId, targetUserId, newRole)`のように`requesterId`を含む形で書かれているが、これはInvariants節の文章（`requesterId`は不変条件の判定には使わず、コントローラー側の自己ターゲット時`session.destroy()`判定にのみ使う）および既にマージ済みの`AuthRepository.updateRole`/`updateStatus`（`requesterId`を取らない、対象行のみで判定する契約）と矛盾する古い記述。実装は`requesterId`なしの`changeRole(targetUserId, newRole)`/`changeStatus(targetUserId, newStatus)`とした（レビューでも独立に正しいと確認済み）。design.mdのコード例は将来修正で構わないが、tasks.mdの記述を優先する。
