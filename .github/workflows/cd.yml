@@ -71,10 +71,23 @@ jobs:
           key: ${{ secrets.SERVER_SSH_KEY }}
           port: ${{ secrets.SERVER_PORT }}
           envs: GITHUB_TOKEN,GITHUB_ACTOR
+          script_stop: true
           script: |
+            set -e
             cd ${{ secrets.SERVER_DEPLOY_PATH }}
             git pull origin main
             echo "$GITHUB_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
             docker compose -f docker-compose.yml -f docker-compose.prod.yml pull api web
             docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
             docker image prune -f
+
+            for i in $(seq 1 10); do
+              code=$(curl -s -o /dev/null -w '%{http_code}' http://localhost:3001/auth/me || echo "000")
+              if [ "$code" = "401" ]; then
+                echo "API health check passed (401 from /auth/me)"
+                exit 0
+              fi
+              sleep 3
+            done
+            echo "API health check failed: /auth/me did not return 401 after 30s"
+            exit 1
