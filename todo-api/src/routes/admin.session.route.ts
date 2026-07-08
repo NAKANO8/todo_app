@@ -1,7 +1,7 @@
 // routes/admin.session.route.ts
-import { FastifyInstance, FastifyRequest, FastifyReply } from "fastify";
+import { FastifyInstance } from "fastify";
 import { AdminSessionController } from "../controllers/admin.session.controller";
-import { AuthRepository } from "../repositories/auth.repository";
+import { adminOnlyGuard } from "../guards/adminOnly";
 
 const invalidateSchema = {
   params: {
@@ -14,17 +14,11 @@ const invalidateSchema = {
 } as const;
 
 export async function adminSessionRoutes(app: FastifyInstance) {
-  // AdminRoleGuard: 認証済みかつrole===adminであることを確認する。このプラグインの
-  // スコープ内に閉じたpreHandlerなので、他のルートには影響しない（Fastifyのカプセル化）。
-  app.addHook("preHandler", async (req: FastifyRequest, reply: FastifyReply) => {
-    if (!req.session.userId) {
-      return reply.status(401).send({ message: "Unauthorized" });
-    }
-    const requester = await AuthRepository.findById(req.session.userId);
-    if (!requester || requester.role !== "admin") {
-      return reply.status(403).send({ message: "Forbidden" });
-    }
-  });
+  // adminOnlyGuard: 認証済みかつrole===adminであることを確認する共有ガード
+  // (guards/adminOnly.ts)。このプラグインのスコープ内に閉じたpreHandlerなので、
+  // 他のルートには影響しない（Fastifyのカプセル化）。判定内容・レスポンスは
+  // 切り出し前のインライン実装と同一。
+  app.addHook("preHandler", adminOnlyGuard);
 
   app.delete(
     "/admin/sessions/:userId",
