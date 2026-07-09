@@ -1,10 +1,11 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { toast } from "react-toastify";
 
 import type { AccountStatus, User, UserRole } from "@/lib/types";
-import { fetchUsers, updateUserRole, updateUserStatus } from "@/lib/api/adminUsers";
+import { AdminApiError, fetchUsers, updateUserRole, updateUserStatus } from "@/lib/api/adminUsers";
 
 const TOAST_OPTIONS = {
   position: "top-center" as const,
@@ -14,6 +15,17 @@ const TOAST_OPTIONS = {
 
 function toErrorMessage(err: unknown, fallback: string): string {
   return err instanceof Error ? err.message : fallback;
+}
+
+// AdminUserService(唯一の有効な管理者を保護するロジック)が拒否した場合、APIは
+// 409(降格/無効化不可)または404(対象なし)を返す。生の英語メッセージをそのまま
+// 出すのではなく、画面の言語(日本語)に合わせた理由を表示する。
+function toAdminActionErrorMessage(err: unknown, fallback: string): string {
+  if (err instanceof AdminApiError) {
+    if (err.status === 409) return "唯一の有効な管理者のため、この操作はできません";
+    if (err.status === 404) return "対象のユーザーが見つかりませんでした";
+  }
+  return toErrorMessage(err, fallback);
 }
 
 export default function AdminUserList() {
@@ -33,7 +45,7 @@ export default function AdminUserList() {
       const latest = await fetchUsers();
       setUsers(latest);
     } catch (err) {
-      toast.error(toErrorMessage(err, "ロールの変更に失敗しました"), TOAST_OPTIONS);
+      toast.error(toAdminActionErrorMessage(err, "ロールの変更に失敗しました"), TOAST_OPTIONS);
     }
   };
 
@@ -43,16 +55,34 @@ export default function AdminUserList() {
       const latest = await fetchUsers();
       setUsers(latest);
     } catch (err) {
-      toast.error(toErrorMessage(err, "アカウント状態の変更に失敗しました"), TOAST_OPTIONS);
+      toast.error(toAdminActionErrorMessage(err, "アカウント状態の変更に失敗しました"), TOAST_OPTIONS);
     }
   };
 
   return (
     <div className="min-h-screen bg-[#fafaf9] text-[#1c2024]">
       <header className="flex items-center justify-between px-5 py-[18px] border-b border-[#e6e4df] bg-white">
-        <div className="text-base font-bold tracking-tight text-[#1c2024]">
-          ユーザー管理
+        <div className="flex items-center gap-2">
+          <svg width="26" height="26" viewBox="0 0 36 36" fill="none">
+            <rect x="1.5" y="1.5" width="33" height="33" rx="9" stroke="#2f6f5e" strokeWidth="2" />
+            <circle cx="18" cy="14" r="4" stroke="#2f6f5e" strokeWidth="2.6" />
+            <path
+              d="M10 27C10 22 13.5 19 18 19C22.5 19 26 22 26 27"
+              stroke="#2f6f5e"
+              strokeWidth="2.6"
+              strokeLinecap="round"
+            />
+          </svg>
+          <div className="text-base font-bold tracking-tight text-[#1c2024]">
+            ユーザー管理
+          </div>
         </div>
+        <Link
+          href="/todos"
+          className="text-[13px] font-semibold text-[#6b6f76] bg-[#f1efea] rounded-lg px-[14px] py-[7px] hover:bg-[#e6e4df] hover:text-[#1c2024]"
+        >
+          タスク一覧へ戻る
+        </Link>
       </header>
 
       <div className="max-w-[880px] w-full mx-auto px-5 py-6">

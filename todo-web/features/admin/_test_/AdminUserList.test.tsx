@@ -2,15 +2,21 @@ import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { toast } from "react-toastify";
-import { fetchUsers, updateUserRole, updateUserStatus } from "@/lib/api/adminUsers";
+import { AdminApiError, fetchUsers, updateUserRole, updateUserStatus } from "@/lib/api/adminUsers";
 import AdminUserList from "../AdminUserList";
 import type { User } from "@/lib/types";
 
-vi.mock("@/lib/api/adminUsers", () => ({
-  fetchUsers: vi.fn(),
-  updateUserRole: vi.fn(),
-  updateUserStatus: vi.fn(),
-}));
+vi.mock("@/lib/api/adminUsers", async () => {
+  const actual = await vi.importActual<typeof import("@/lib/api/adminUsers")>(
+    "@/lib/api/adminUsers"
+  );
+  return {
+    ...actual,
+    fetchUsers: vi.fn(),
+    updateUserRole: vi.fn(),
+    updateUserStatus: vi.fn(),
+  };
+});
 
 vi.mock("react-toastify", () => ({
   toast: { error: vi.fn() },
@@ -52,6 +58,13 @@ describe("AdminUserList", () => {
     expect(screen.getByText("一般ユーザー")).toBeInTheDocument();
     expect(screen.getByText("有効")).toBeInTheDocument();
     expect(screen.getByText("無効")).toBeInTheDocument();
+  });
+
+  it("タスク一覧へ戻るリンクが表示され、/todosを指している", async () => {
+    render(<AdminUserList />);
+
+    const link = await screen.findByRole("link", { name: "タスク一覧へ戻る" });
+    expect(link).toHaveAttribute("href", "/todos");
   });
 
   it("一覧取得に失敗した場合、トーストでエラーが表示されクラッシュしない", async () => {
@@ -133,6 +146,43 @@ describe("AdminUserList", () => {
       expect(screen.getByText(adminActive.email)).toBeInTheDocument();
       expect(screen.getByText("管理者")).toBeInTheDocument();
       expect(screen.getByText("有効")).toBeInTheDocument();
+    }
+  );
+
+  it.each([
+    {
+      action: "ロール変更" as const,
+      buttonName: "一般ユーザーにする",
+      setup: () =>
+        mockUpdateUserRole.mockRejectedValue(
+          new AdminApiError(409, "cannot change the last remaining active admin")
+        ),
+    },
+    {
+      action: "状態変更" as const,
+      buttonName: "無効化",
+      setup: () =>
+        mockUpdateUserStatus.mockRejectedValue(
+          new AdminApiError(409, "cannot change the last remaining active admin")
+        ),
+    },
+  ])(
+    "$action が最後の管理者保護で拒否された場合(409)、理由が分かるトーストが表示される",
+    async ({ buttonName, setup }) => {
+      const user = userEvent.setup();
+      setup();
+
+      render(<AdminUserList />);
+      await waitFor(() => expect(screen.getByText(adminActive.email)).toBeInTheDocument());
+
+      await user.click(screen.getByRole("button", { name: buttonName }));
+
+      await waitFor(() =>
+        expect(mockToastError).toHaveBeenCalledWith(
+          "唯一の有効な管理者のため、この操作はできません",
+          expect.anything()
+        )
+      );
     }
   );
 });
