@@ -13,6 +13,7 @@ import { initSessionRepository } from "./repositories/sessionRepositoryInstance"
 import { todoRoutes } from "./routes/todos.route";
 import { authRoutes } from "./routes/auth.route";
 import { adminSessionRoutes } from "./routes/admin.session.route";
+import { adminUserRoutes } from "./routes/admin.user.route";
 
 // https://www.cloudflare.com/ips-v4 / ips-v6 で定期的に最新化すること
 const CLOUDFLARE_CIDRS = [
@@ -95,5 +96,6 @@ export async function buildApp() {
   await app.register(todoRoutes);
   await app.register(authRoutes);
   await app.register(adminSessionRoutes);
+  await app.register(adminUserRoutes);
   return app;
 }
