@@ -6,3 +6,14 @@ export type Todo = {
   updated_at: string;
 };
 
+export type UserRole = "admin" | "member";
+
+export type AccountStatus = "active" | "disabled";
+
+export type User = {
+  id: number;
+  email: string;
+  role: UserRole;
+  status: AccountStatus;
+};
+
