@@ -2,6 +2,7 @@ import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { fetchTodos, createTodo, updateTodo, deleteTodo } from "@/lib/api/todos";
+import { fetchMe } from "@/lib/api/auth";
 import TodoApp from "../TodoApp";
 import type { Todo } from "@/lib/types";
 
@@ -12,6 +13,10 @@ vi.mock("@/lib/api/todos", () => ({
   deleteTodo: vi.fn(),
 }));
 
+vi.mock("@/lib/api/auth", () => ({
+  fetchMe: vi.fn(),
+}));
+
 vi.mock("react-toastify", () => ({
   toast: { error: vi.fn() },
 }));
@@ -20,6 +25,7 @@ const mockFetchTodos = vi.mocked(fetchTodos);
 const mockCreateTodo = vi.mocked(createTodo);
 const mockUpdateTodo = vi.mocked(updateTodo);
 const mockDeleteTodo = vi.mocked(deleteTodo);
+const mockFetchMe = vi.mocked(fetchMe);
 
 const mockIncompleteTodo: Todo = {
   id: 1, title: "未完了Todo", status: 0,
@@ -37,6 +43,32 @@ describe("TodoApp", () => {
     mockCreateTodo.mockResolvedValue(undefined);
     mockUpdateTodo.mockResolvedValue(undefined);
     mockDeleteTodo.mockResolvedValue(undefined);
+    mockFetchMe.mockResolvedValue({ id: 1, email: "member@example.com", role: "member" });
+  });
+
+  it("管理者でログインしている場合、管理者画面へのリンクが表示される", async () => {
+    mockFetchMe.mockResolvedValue({ id: 1, email: "admin@example.com", role: "admin" });
+
+    render(<TodoApp />);
+
+    const link = await screen.findByRole("link", { name: "管理者画面" });
+    expect(link).toHaveAttribute("href", "/admin/users");
+  });
+
+  it("一般ユーザーでログインしている場合、管理者画面へのリンクは表示されない", async () => {
+    render(<TodoApp />);
+    await waitFor(() => expect(screen.getByText("未完了Todo")).toBeInTheDocument());
+
+    expect(screen.queryByRole("link", { name: "管理者画面" })).not.toBeInTheDocument();
+  });
+
+  it("ユーザー情報の取得に失敗した場合、管理者画面へのリンクは表示されない", async () => {
+    mockFetchMe.mockRejectedValue(new Error("network error"));
+
+    render(<TodoApp />);
+    await waitFor(() => expect(screen.getByText("未完了Todo")).toBeInTheDocument());
+
+    expect(screen.queryByRole("link", { name: "管理者画面" })).not.toBeInTheDocument();
   });
 
   it("マウント時にフェッチされたTodoが表示される", async () => {
