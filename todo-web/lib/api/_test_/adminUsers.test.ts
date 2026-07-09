@@ -43,14 +43,20 @@ describe("lib/api/adminUsers", () => {
       expect(result).toEqual(users);
     });
 
-    it("レスポンスが失敗の場合はエラーを投げる", async () => {
+    it("レスポンスが失敗の場合、statusとサーバーのmessageを持つAdminApiErrorを投げる", async () => {
       vi.stubGlobal(
         "fetch",
-        vi.fn().mockResolvedValue({ ok: false, json: async () => ({}) })
+        vi.fn().mockResolvedValue({
+          ok: false,
+          status: 500,
+          json: async () => ({ message: "boom" }),
+        })
       );
 
-      const { fetchUsers } = await loadAdminUsersModule();
-      await expect(fetchUsers()).rejects.toThrow();
+      const { fetchUsers, AdminApiError } = await loadAdminUsersModule();
+      await expect(fetchUsers()).rejects.toMatchObject(
+        new AdminApiError(500, "boom")
+      );
     });
   });
 
@@ -73,14 +79,20 @@ describe("lib/api/adminUsers", () => {
       });
     });
 
-    it("レスポンスが失敗の場合はエラーを投げる", async () => {
+    it("最後の管理者保護で拒否された場合(409)、サーバーのmessageを持つAdminApiErrorを投げる", async () => {
       vi.stubGlobal(
         "fetch",
-        vi.fn().mockResolvedValue({ ok: false, json: async () => ({}) })
+        vi.fn().mockResolvedValue({
+          ok: false,
+          status: 409,
+          json: async () => ({ message: "cannot change the last remaining active admin" }),
+        })
       );
 
-      const { updateUserRole } = await loadAdminUsersModule();
-      await expect(updateUserRole(42, "member")).rejects.toThrow();
+      const { updateUserRole, AdminApiError } = await loadAdminUsersModule();
+      await expect(updateUserRole(42, "member")).rejects.toMatchObject(
+        new AdminApiError(409, "cannot change the last remaining active admin")
+      );
     });
   });
 
@@ -104,14 +116,20 @@ describe("lib/api/adminUsers", () => {
       expect(result).toEqual({ invalidatedCount: 3 });
     });
 
-    it("レスポンスが失敗の場合はエラーを投げる", async () => {
+    it("対象ユーザーが存在しない場合(404)、サーバーのmessageを持つAdminApiErrorを投げる", async () => {
       vi.stubGlobal(
         "fetch",
-        vi.fn().mockResolvedValue({ ok: false, json: async () => ({}) })
+        vi.fn().mockResolvedValue({
+          ok: false,
+          status: 404,
+          json: async () => ({ message: "user not found" }),
+        })
       );
 
-      const { updateUserStatus } = await loadAdminUsersModule();
-      await expect(updateUserStatus(7, "active")).rejects.toThrow();
+      const { updateUserStatus, AdminApiError } = await loadAdminUsersModule();
+      await expect(updateUserStatus(7, "active")).rejects.toMatchObject(
+        new AdminApiError(404, "user not found")
+      );
     });
   });
 });

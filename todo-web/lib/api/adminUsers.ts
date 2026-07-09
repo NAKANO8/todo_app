@@ -6,12 +6,29 @@ import type { AccountStatus, User, UserRole } from "@/lib/types";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE!;
 
+// AdminUserController([adminUser.controller.ts](../../../todo-api/src/controllers/adminUser.controller.ts))
+// が返す { message } とstatusCode(404/409等)を呼び出し側(AdminUserList)で判別できるよう保持する。
+export class AdminApiError extends Error {
+  status: number;
+
+  constructor(status: number, message: string) {
+    super(message);
+    this.status = status;
+  }
+}
+
+async function toAdminApiError(res: Response, fallback: string): Promise<AdminApiError> {
+  const body = await res.json().catch(() => null);
+  const message = typeof body?.message === "string" ? body.message : fallback;
+  return new AdminApiError(res.status, message);
+}
+
 export async function fetchUsers(): Promise<User[]> {
   const res = await fetch(`${API_BASE}/admin/users`, {
     cache: "no-store",
     credentials: "include",
   });
-  if (!res.ok) throw new Error("Failed to fetch users");
+  if (!res.ok) throw await toAdminApiError(res, "Failed to fetch users");
   return res.json();
 }
 
@@ -23,7 +40,7 @@ export async function updateUserRole(userId: number, role: UserRole): Promise<vo
     credentials: "include",
   });
 
-  if (!res.ok) throw new Error("Failed to update user role");
+  if (!res.ok) throw await toAdminApiError(res, "Failed to update user role");
 }
 
 export async function updateUserStatus(
@@ -37,6 +54,6 @@ export async function updateUserStatus(
     credentials: "include",
   });
 
-  if (!res.ok) throw new Error("Failed to update user status");
+  if (!res.ok) throw await toAdminApiError(res, "Failed to update user status");
   return res.json();
 }
