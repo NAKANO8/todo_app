@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { toast } from "react-toastify";
 
 import { TodoInput } from "../../components/todo/TodoInput";
@@ -9,13 +10,21 @@ import { DoneTodos } from "../../components/todo/DoneTodos";
 
 import type { Todo } from "@/lib/types";
 import { fetchTodos, createTodo, updateTodo, deleteTodo } from "@/lib/api/todos";
+import { fetchMe } from "@/lib/api/auth";
 
 export default function TodoApp() {
   const [inputValue, setInputValue] = useState("");
   const [todos, setTodos] = useState<Todo[]>([]);
+  const [isAdmin, setIsAdmin] = useState(false);
 
   useEffect(() => {
     fetchTodos().then(setTodos).catch(console.error);
+  }, []);
+
+  useEffect(() => {
+    fetchMe()
+      .then((me) => setIsAdmin(me.role === "admin"))
+      .catch(() => setIsAdmin(false));
   }, []);
 
   const activeTodos = todos.filter(t => t.status === 0);
@@ -68,14 +77,24 @@ export default function TodoApp() {
             Todo<span className="font-medium text-[#6b6f76]"> App</span>
           </div>
         </div>
-        <form action="/api/auth/logout" method="POST">
-          <button
-            type="submit"
-            className="text-[13px] font-semibold text-[#6b6f76] bg-[#f1efea] rounded-lg px-[14px] py-[7px] cursor-pointer hover:bg-[#e6e4df] hover:text-[#1c2024]"
-          >
-            ログアウト
-          </button>
-        </form>
+        <div className="flex items-center gap-2">
+          {isAdmin && (
+            <Link
+              href="/admin/users"
+              className="text-[13px] font-semibold text-[#6b6f76] bg-[#f1efea] rounded-lg px-[14px] py-[7px] hover:bg-[#e6e4df] hover:text-[#1c2024]"
+            >
+              管理者画面
+            </Link>
+          )}
+          <form action="/api/auth/logout" method="POST">
+            <button
+              type="submit"
+              className="text-[13px] font-semibold text-[#6b6f76] bg-[#f1efea] rounded-lg px-[14px] py-[7px] cursor-pointer hover:bg-[#e6e4df] hover:text-[#1c2024]"
+            >
+              ログアウト
+            </button>
+          </form>
+        </div>
       </header>
 
       <div className="max-w-[440px] w-full mx-auto px-5 py-6 flex flex-col gap-3 md:max-w-[560px] xl:max-w-[680px]">
