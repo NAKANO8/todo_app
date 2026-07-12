@@ -88,7 +88,7 @@ Monorepo with two packages (`todo-api`, `todo-web`) managed by pnpm workspaces.
 
 Auth is enforced in `middleware.ts` via a server-side call to `/auth/me` — no auth logic runs in the browser.
 
-See [database-schema.md](database-schema.md) for the ER diagram and table definitions.
+See the [Database Schema wiki page](https://github.com/NAKANO8/todo_app/wiki/Database-Schema) for the ER diagram and table definitions.
 
 ## Acknowledgements
 
