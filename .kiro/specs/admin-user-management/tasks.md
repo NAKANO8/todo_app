@@ -77,19 +77,19 @@
   - _Depends: 4.1_
 
 - [ ] 5. Validation: 同時実行・回帰の確認
-- [ ] 5.1 同時実行下でも最後の管理者保護が破られないことを確認する
+- [x] 5.1 同時実行下でも最後の管理者保護が破られないことを確認する
   - 管理者がちょうど2人の状態で、両者が同時に自分自身を降格させる場合と、互いを降格させ合う場合の両方について、片方のみ成功し有効な管理者が必ず1人残ることを確認する検証を用意する
   - Observable: 上記いずれの同時実行パターンでも検証が成功し、有効な管理者が0人になる結果が発生しないことを確認できる
   - _Requirements: 7.1, 7.2, 7.3, 7.4_
   - _Depends: 3_
 
-- [ ] 5.2 既存のセッション無効化機能に対する回帰がないことを確認する
+- [x] 5.2 既存のセッション無効化機能に対する回帰がないことを確認する
   - 認可判定の共通化後も、既存の管理者向けセッション無効化エンドポイントの拒否条件・成功時の結果が変わっていないことを確認する
   - Observable: 既存のセッション無効化に関する検証が変更後もすべて成功することを確認できる
   - _Requirements: 6.1, 6.2_
   - _Depends: 2.2_
 
-- [ ] 5.3 アカウント無効化からログイン拒否までの一連の流れを確認する
+- [x] 5.3 アカウント無効化からログイン拒否までの一連の流れを確認する
   - 管理者が対象ユーザーを無効化した後、対象ユーザーの既存のログイン状態が失効し、かつ新たなログイン試行も拒否されることを確認する検証を用意する
   - Observable: 無効化後、対象ユーザーの既存のリクエストが未認証として扱われ、かつ新たなログイン試行も拒否されることを確認できる
   - _Requirements: 4.2, 4.3_
@@ -101,3 +101,6 @@
 - 5.1で検証する「対象がちょうど2人の管理者で相互に降格させ合う」ケースは、1.3/1.4で実装するアトミックな更新（対象行基準・`updated_at`明示によるaffectedRows整合）が正しく動作していることが前提。1.3/1.4のレビュー時にこの観点を含めること。
 - **1.3実装時に判明**: design.mdのSQL案（`EXISTS (SELECT 1 FROM users WHERE ...)`が更新対象と同じテーブルを参照する形）はMySQL 8.0で`ERROR 1093: You can't specify target table 'users' for update in FROM clause`になり実行不可。サブクエリを導出テーブル（`SELECT 1 FROM (SELECT id FROM users WHERE ...) AS other_active_admins`）で包む標準的な回避策で対応済み（判定ロジック自体は不変）。1.4の`updateStatus`でも同じ回避策を使うこと。
 - **2.3実装時に判明**: design.mdの`AdminUserServiceType`コード例・シーケンス図は`changeRole(requesterId, targetUserId, newRole)`のように`requesterId`を含む形で書かれているが、これはInvariants節の文章（`requesterId`は不変条件の判定には使わず、コントローラー側の自己ターゲット時`session.destroy()`判定にのみ使う）および既にマージ済みの`AuthRepository.updateRole`/`updateStatus`（`requesterId`を取らない、対象行のみで判定する契約）と矛盾する古い記述。実装は`requesterId`なしの`changeRole(targetUserId, newRole)`/`changeStatus(targetUserId, newStatus)`とした（レビューでも独立に正しいと確認済み）。design.mdのコード例は将来修正で構わないが、tasks.mdの記述を優先する。
+- **5.2実施時に判明**: 既存の`admin.session.api.test.ts`（Requirement 6.1/6.2の回帰対象）と`admin.user.api.test.ts`内の`guardedEndpoints`表形式テストが、共通ガード化後の拒否条件(401/403)を新旧エンドポイント双方についてすでに検証済みだった。新規テストの追加は不要で、既存テスト一式(8件)が変更なく全てpassすることの確認のみで満たされた。
+- **5.3実装時に判明**: `admin.user.api.test.ts`は`SessionService`をモックしているため「呼ばれたか」までしか検証できない。対象ユーザーの既存セッションが実際に破棄されることまで確認するため、`SessionService`を実物のまま使う専用の統合テスト`admin.disableLoginFlow.api.test.ts`を新設した（`admin.user.route`と`auth.route`を同一Fastifyインスタンスに登録し、実際のbcryptハッシュでログイン→無効化→再ログイン拒否まで一気通貫で検証）。
+- **5.1実装時に判明**: `auth.repository.test.ts`の`withOnlyActiveAdminBeing`（単一コネクション上の未コミットトランザクションに閉じ込める方式）は、本物の複数コネクションにまたがる同時実行を再現できない（1本のコネクションはコマンドを直列に処理するため）。そのため5.1専用の`auth.repository.concurrency.test.ts`を新設し、実DB上の既存アクティブ管理者を一時的に実コミットで無効化してから2人ちょうどの状態を作り、`Promise.allSettled`で本物の同時実行を発生させて検証した（自己降格の同時実行・相互降格の同時実行の両方、各5回ずつ再実行し安定してpassすることを確認済み）。相互降格ケースは理論上デッドロック（Aの更新がBの行を読み、Bの更新がAの行を読む交差ロック）の可能性を懸念したが、実行結果は一貫して安定しており、片方のaffectedRowsが0になる形で正しく解決されている。
