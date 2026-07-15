@@ -1,6 +1,7 @@
 // routes/todos.route.ts
-import { FastifyInstance, FastifyRequest, FastifyReply } from "fastify";
+import { FastifyInstance } from "fastify";
 import { TodoController } from "../controllers/todos.controller";
+import { requireAuthGuard } from "../guards/requireAuth";
 
 const createTodoSchema = {
   body: {
@@ -26,11 +27,11 @@ const updateTodoSchema = {
 } as const;
 
 export async function todoRoutes(app: FastifyInstance) {
-  app.addHook("preHandler", async (req: FastifyRequest, reply: FastifyReply) => {
-    if (!req.session.userId) {
-      return reply.status(401).send({ message: "Unauthorized" });
-    }
-  });
+  // requireAuthGuard: 認証済み(req.session.userIdあり)判定の共有ガード
+  // (guards/requireAuth.ts、profile-screen spec タスク1.2)。このプラグインの
+  // スコープ内に閉じたpreHandlerなので、他のルートには影響しない
+  // (Fastifyのカプセル化)。判定内容・レスポンスは元のインライン実装と同一。
+  app.addHook("preHandler", requireAuthGuard);
 
   app.get("/todos", TodoController.getAll);
   app.get("/todos/:id", TodoController.getById);
