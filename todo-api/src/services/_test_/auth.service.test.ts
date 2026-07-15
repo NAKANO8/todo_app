@@ -87,31 +87,34 @@ describe("AuthService.login", () => {
   });
 });
 
-// Requirement 1.1/4.1: users.name は NOT NULL のため、register() は
-// AuthRepository.createUser に必ず name を渡さなければならない。登録
-// リクエスト自体に name フィールドを必須化するのは別タスクの責務のため、
-// ここでは「name を渡さずに createUser が呼ばれることは絶対にない」ことのみを検証する。
+// Requirement 3.1/3.2/3.3: name は登録リクエストの必須項目としてルート層(AJVスキーマ)で
+// 検証される。AuthService.register はその検証を通過したクライアント指定のnameを、
+// (かつてのようにemailのローカル部から導出することなく)そのままcreateUserへ渡す責務のみを持つ。
 describe("AuthService.register", () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
-  it("新規登録時、emailのローカル部から導出したnameを添えてcreateUserを呼ぶ", async () => {
+  it("新規登録時、クライアントが指定したnameをそのまま添えてcreateUserを呼ぶ(emailからの導出はしない)", async () => {
     (AuthRepository.findByEmail as any).mockResolvedValue(null);
     (bcrypt.hash as any).mockResolvedValue("hashed-password");
 
-    await AuthService.register({ email: "new.user@example.com", password: "Testpassword1" });
+    await AuthService.register({
+      email: "new.user@example.com",
+      password: "Testpassword1",
+      name: "New User",
+    });
 
     expect(AuthRepository.createUser).toHaveBeenCalledWith({
       email: "new.user@example.com",
       password_hash: "hashed-password",
-      name: "new.user",
+      name: "New User",
     });
   });
 
   it("email/passwordが未指定の場合は400のAppErrorを投げ、createUserは呼ばれない", async () => {
     await expect(
-      AuthService.register({ email: "", password: "" })
+      AuthService.register({ email: "", password: "", name: "Someone" })
     ).rejects.toMatchObject({ message: "no email or password", statusCode: 400 });
 
     expect(AuthRepository.createUser).not.toHaveBeenCalled();

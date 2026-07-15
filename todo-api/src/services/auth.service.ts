@@ -1,5 +1,5 @@
 import { AuthRepository } from "../repositories/auth.repository";
-import { LoginBody } from "../types/todo";
+import { LoginBody, RegisterBody } from "../types/todo";
 import bcrypt from "bcrypt";
 import { AppError } from "../errors/AppError";
 
@@ -29,7 +29,7 @@ export const AuthService = {
     return user;
   },
 
-  async register({ email, password }: LoginBody) {
+  async register({ email, password, name }: RegisterBody) {
     if (!email || !password) {
       throw new AppError('no email or password', 400);
     }
@@ -42,14 +42,9 @@ export const AuthService = {
 
     const password_hash = await bcrypt.hash(password, 10);
 
-    // `users.name` is NOT NULL, but the register request doesn't accept a
-    // client-supplied `name` yet (that's a separate task: making `name` a
-    // required registration field with its own AJV validation). Until then,
-    // derive a placeholder from the email local-part — the exact same rule
-    // used to backfill pre-existing accounts (Requirement 4.1) — so new
-    // registrations never violate the NOT NULL constraint.
-    const name = email.split('@')[0];
-
+    // `name` is required and validated (1-50 chars) by registerBodySchema in
+    // auth.route.ts before this handler runs — persist the client-supplied
+    // value as-is rather than deriving one from the email local-part.
     await AuthRepository.createUser({ email, password_hash, name });
   },
 

@@ -11,3 +11,7 @@ export type LoginBody = {
   email: string;
   password: string;
 };
+
+export type RegisterBody = LoginBody & {
+  name: string;
+};

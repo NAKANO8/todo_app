@@ -10,7 +10,7 @@ beforeAll(async () => {
   await app.inject({
     method: "POST",
     url: "/auth/register",
-    payload: { email: "api_test@example.com", password: "Testpassword1" },
+    payload: { email: "api_test@example.com", password: "Testpassword1", name: "API Test User" },
   });
 
   const loginRes = await app.inject({

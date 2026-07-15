@@ -1,5 +1,5 @@
 import { FastifyRequest, FastifyReply } from "fastify";
-import { LoginBody } from "../types/todo";
+import { LoginBody, RegisterBody } from "../types/todo";
 import { AuthService } from "../services/auth.service";
 import { AppError } from "../errors/AppError";
 import { getSessionRepository } from "../repositories/sessionRepositoryInstance";
@@ -24,7 +24,7 @@ export const AuthController = {
   },
 
   async newRegister(
-    req: FastifyRequest<{ Body: LoginBody }>,
+    req: FastifyRequest<{ Body: RegisterBody }>,
     reply: FastifyReply
   ) {
     try {
