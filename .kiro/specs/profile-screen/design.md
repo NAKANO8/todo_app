@@ -167,8 +167,10 @@ todo-web/
 ├── features/
 │   ├── auth/
 │   │   └── LoginForm.tsx         # MODIFIED: mode==="register"時のみname入力欄を表示
+│   ├── todo/
+│   │   └── TodoApp.tsx           # MODIFIED: ヘッダーに全認証済みユーザー向けの「プロフィール」リンクを追加
 │   └── profile/
-│       ├── ProfileForm.tsx       # NEW: 表示名の表示/変更フォーム + パスワード変更フォーム
+│       ├── ProfileForm.tsx       # NEW: 表示名の表示/変更カード + パスワード変更カード(2枚を1ページに縦積み)
 │       └── _test_/
 │           └── ProfileForm.test.tsx # NEW
 └── app/
@@ -191,6 +193,7 @@ todo-web/
 - `todo-web/lib/api/auth.ts` — `CurrentUser`型に`name: string`を追加（`fetchMe()`は`/auth/me`をそのまま呼ぶため実装変更は型のみ）。
 - `todo-web/features/auth/LoginForm.tsx` — `mode==="register"`のときのみ`name`の`<input>`を表示し、`handleSubmit`で`validateName`によるクライアント側チェックを追加する。
 - `todo-web/app/api/auth/register/route.ts` — `formData.get("name")`を取り出し、Fastifyへ転送するJSONボディに含める。
+- `todo-web/features/todo/TodoApp.tsx` — ヘッダーの管理者リンク（`isAdmin`条件付き）と同じスタイルで、`isAdmin`を問わず全認証済みユーザーに表示される「プロフィール」リンクを追加する。現状`/profile`への画面上の導線が存在しないため必須の変更。管理者は「管理者画面」「プロフィール」「ログアウト」の3ボタンが並ぶことになり、狭い画面幅では窮屈になりうるため、右側のボタン群コンテナに`flex-wrap`を追加し、収まらない場合は自然に折り返す（新規コンポーネントは追加しない、既存スタイルのみの軽微な調整）。
 
 ## System Flows
 
@@ -365,6 +368,11 @@ interface ProfileServiceType {
 - ページ読み込み時に`fetchMe()`（`lib/api/auth.ts`、拡張済み）を呼び、`id`/`email`/`name`を表示する
 - `lib/api/adminUsers.ts`と同じ直接fetchパターン（`credentials: "include"`、Cookie変更を伴わないため`app/api`プロキシは不要）に従う
 - 表示名変更・パスワード変更は別々のフォーム操作として提供する（Requirement 2とRequirement 5は独立した操作）
+- **画面構成**: `AdminUserList`と同じヘッダーパターン（ロゴ、「タスク一覧へ戻る」リンク）を持つ単一ページ（`/profile`）とし、その下に2つのカードを縦に並べる
+  1. アカウント情報カード: メールアドレス（読み取り専用表示）、表示名（編集可能な入力欄）、「更新」ボタン
+  2. パスワード変更カード: 現在のパスワード、新しいパスワード、新しいパスワード（確認用）の3つの入力欄、「変更」ボタン
+- **確認用パスワード入力欄はクライアント側のみの検証**（新しいパスワードと一致しない場合は送信前に拒否）であり、APIへは送信しない。API契約（`currentPassword`/`newPassword`の2フィールド）は変更しない
+- `TodoApp.tsx`のヘッダーに、認証済みユーザー全員が使える「プロフィール」への遷移リンクを追加する（既存の管理者リンクと同じスタイル、`isAdmin`条件なしで常に表示）。現状`/profile`へ到達する手段が画面上に存在しないため、この導線追加は本UIの前提条件
 
 **Contracts**: API [x] / State [x]
 
@@ -378,8 +386,8 @@ function changeProfilePassword(
 ```
 
 **Implementation Notes**
-- Integration: エラー（400/401/404/429）は`lib/api/todos.ts`と同様に`throw new Error(...)`し、呼び出し元コンポーネントでインラインエラー表示を行う。429の場合は「しばらく待ってから再試行してください」等、他と区別できるメッセージにする。
-- Validation: 送信前に`lib/validation.ts`の`validateName`/`validatePassword`でクライアント側の事前チェックを行う（サーバー側スキーマ検証が権威、クライアント側はUX向上のみ）
+- Integration: エラー（400/401/404/429）は`lib/api/todos.ts`と同様に`throw new Error(...)`し、呼び出し元コンポーネントで`AdminUserList`と同じ`react-toastify`によるトースト表示を行う。429の場合は「しばらく待ってから再試行してください」等、他と区別できるメッセージにする。パスワード変更成功時のトーストには、他のセッションが終了したことを伝える文言を含める
+- Validation: 送信前に`lib/validation.ts`の`validateName`/`validatePassword`でクライアント側の事前チェックを行う（サーバー側スキーマ検証が権威、クライアント側はUX向上のみ）。確認用パスワードの不一致もこの段階で弾く
 - Risks: なし
 
 #### LoginForm（拡張）
