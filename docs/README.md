@@ -2,7 +2,7 @@
 
 A full-stack Todo application — create, complete, and delete personal todos with account registration and login.
 
-<img src="screenshot-landing.png" width="700" alt="Landing page" />
+<img src="assets/screenshot-landing.png" width="700" alt="Landing page" />
 
 ## Prerequisites
 
@@ -45,16 +45,16 @@ Make sure the following are installed before getting started:
 
 ## First-time Usage
 
-<img src="recording.gif" width="700" alt="Usage demo" />
+<img src="assets/recording.gif" width="700" alt="Usage demo" />
 
 1. Click **新規登録 (Register)** and create an account
 2. Log in with your email and password
 3. Type a todo in the input field and click **追加 (Add)**
 4. Mark todos as complete or delete them from the list
 
-<img src="screenshot-login.png" width="400" alt="Login screen" />
-<img src="screenshot-register.png" width="400" alt="Register screen" />
-<img src="screenshot-app.png" width="700" alt="Todo screen" />
+<img src="assets/screenshot-login.png" width="400" alt="Login screen" />
+<img src="assets/screenshot-register.png" width="400" alt="Register screen" />
+<img src="assets/screenshot-app.png" width="700" alt="Todo screen" />
 
 ## Troubleshooting
 
