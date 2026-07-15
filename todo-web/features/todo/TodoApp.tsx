@@ -12,10 +12,13 @@ import type { Todo } from "@/lib/types";
 import { fetchTodos, createTodo, updateTodo, deleteTodo } from "@/lib/api/todos";
 import { fetchMe } from "@/lib/api/auth";
 
+const TODO_LIMIT_MESSAGE = "登録できるTodoは5個までです";
+
 export default function TodoApp() {
   const [inputValue, setInputValue] = useState("");
   const [todos, setTodos] = useState<Todo[]>([]);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [limitAttempted, setLimitAttempted] = useState(false);
 
   useEffect(() => {
     fetchTodos().then(setTodos).catch(console.error);
@@ -30,20 +33,28 @@ export default function TodoApp() {
   const activeTodos = todos.filter(t => t.status === 0);
   const doneTodos = todos.filter(t => t.status === 1);
 
-  const isTodoLimitReached = activeTodos.length >= 5;
+  const isAtCapacity = activeTodos.length >= 5;
+  const isInputLocked = isAtCapacity && limitAttempted;
 
   useEffect(() => {
-    if (isTodoLimitReached) {
-      toast.error("登録できるのは5個までです", {
-        position: "top-center",
-        autoClose: 2000,
-        theme: "colored",
-      });
-    }
-  }, [isTodoLimitReached]);
+    if (!isAtCapacity) setLimitAttempted(false);
+  }, [isAtCapacity]);
+
+  const warnTodoLimit = () => {
+    setLimitAttempted(true);
+    toast.error(TODO_LIMIT_MESSAGE, {
+      position: "top-center",
+      autoClose: 2000,
+      theme: "colored",
+    });
+  };
 
   const handleAdd = async () => {
     if (inputValue === "") return;
+    if (isAtCapacity) {
+      warnTodoLimit();
+      return;
+    }
     await createTodo(inputValue);
     const latest = await fetchTodos();
     setTodos(latest);
@@ -61,6 +72,10 @@ export default function TodoApp() {
   };
 
   const handleRestore = async (id: number) => {
+    if (isAtCapacity) {
+      warnTodoLimit();
+      return;
+    }
     await updateTodo(id, { status: 0 });
     setTodos((prev) => prev.map((t) => (t.id === id ? { ...t, status: 0 } : t)));
   };
@@ -102,11 +117,11 @@ export default function TodoApp() {
           inputValue={inputValue}
           onChange={(e) => setInputValue(e.target.value)}
           onAdd={handleAdd}
-          disabled={isTodoLimitReached}
+          disabled={isInputLocked}
         />
 
-        {isTodoLimitReached && (
-          <p className="text-red-500 text-sm m-0">登録できるTodoは5個までです</p>
+        {isInputLocked && (
+          <p className="text-red-500 text-sm m-0">{TODO_LIMIT_MESSAGE}</p>
         )}
 
         <ActiveTodos
@@ -118,6 +133,7 @@ export default function TodoApp() {
         <DoneTodos
           todos={doneTodos}
           onRestore={handleRestore}
+          disabled={isInputLocked}
         />
       </div>
     </div>

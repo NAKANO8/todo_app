@@ -3,9 +3,10 @@ import type { Todo } from '@/lib/types';
 type DoneTodosProps = {
   todos: Todo[];
   onRestore: (id: number) => void;
+  disabled?: boolean;
 };
 
-export const DoneTodos = ({ todos, onRestore }: DoneTodosProps) => {
+export const DoneTodos = ({ todos, onRestore, disabled }: DoneTodosProps) => {
   if (todos.length === 0) return null;
 
   return (
@@ -20,7 +21,8 @@ export const DoneTodos = ({ todos, onRestore }: DoneTodosProps) => {
             <span className="flex-1 text-sm text-gray-400 line-through">{todo.title}</span>
             <button
               onClick={() => onRestore(todo.id)}
-              className="text-xs font-medium text-gray-500 bg-gray-100 hover:bg-gray-200 rounded-md px-2.5 py-1 cursor-pointer"
+              disabled={disabled}
+              className="text-xs font-medium text-gray-500 bg-gray-100 hover:bg-gray-200 rounded-md px-2.5 py-1 cursor-pointer disabled:cursor-not-allowed disabled:opacity-50"
             >
               戻す
             </button>
