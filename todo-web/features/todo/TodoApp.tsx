@@ -36,10 +36,6 @@ export default function TodoApp() {
   const isAtCapacity = activeTodos.length >= 5;
   const isInputLocked = isAtCapacity && limitAttempted;
 
-  useEffect(() => {
-    if (!isAtCapacity) setLimitAttempted(false);
-  }, [isAtCapacity]);
-
   const warnTodoLimit = () => {
     setLimitAttempted(true);
     toast.error(TODO_LIMIT_MESSAGE, {
@@ -64,11 +60,13 @@ export default function TodoApp() {
   const handleDelete = async (id: number) => {
     await deleteTodo(id);
     setTodos((prev) => prev.filter((t) => t.id !== id));
+    setLimitAttempted(false);
   };
 
   const handleComplete = async (id: number) => {
     await updateTodo(id, { status: 1 });
     setTodos((prev) => prev.map((t) => (t.id === id ? { ...t, status: 1 } : t)));
+    setLimitAttempted(false);
   };
 
   const handleRestore = async (id: number) => {
