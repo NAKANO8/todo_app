@@ -42,7 +42,15 @@ export const AuthService = {
 
     const password_hash = await bcrypt.hash(password, 10);
 
-    await AuthRepository.createUser({ email, password_hash });
+    // `users.name` is NOT NULL, but the register request doesn't accept a
+    // client-supplied `name` yet (that's a separate task: making `name` a
+    // required registration field with its own AJV validation). Until then,
+    // derive a placeholder from the email local-part — the exact same rule
+    // used to backfill pre-existing accounts (Requirement 4.1) — so new
+    // registrations never violate the NOT NULL constraint.
+    const name = email.split('@')[0];
+
+    await AuthRepository.createUser({ email, password_hash, name });
   },
 
   async me(userId: number) {

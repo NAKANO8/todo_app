@@ -14,7 +14,7 @@ import { AuthRepository } from "../auth.repository";
 // アクティブな管理者にした状態を作る。try/finallyで必ず元に戻す。
 
 async function createFixtureAdmin(email: string): Promise<number> {
-  await AuthRepository.createUser({ email, password_hash: "hashedpassword" });
+  await AuthRepository.createUser({ email, password_hash: "hashedpassword", name: "Fixture Admin" });
   const created = await AuthRepository.findByEmail(email);
   if (!created) throw new Error(`fixture user not created: ${email}`);
   await (pool as any).query(

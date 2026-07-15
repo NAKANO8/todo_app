@@ -78,7 +78,7 @@ export const AuthController = {
     }
     try {
       const user = await AuthService.me(userId);
-      return reply.send({ id: user.id, email: user.email, role: user.role });
+      return reply.send({ id: user.id, email: user.email, role: user.role, name: user.name });
     } catch (err) {
       if (err instanceof AppError) {
         return reply.status(401).send({ message: 'Unauthorized' });

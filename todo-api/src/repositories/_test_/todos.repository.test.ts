@@ -7,8 +7,8 @@ let testUserId: number;
 beforeAll(async () => {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [result]: [any, any] = await (pool as any).query(
-    "INSERT INTO users (email, password_hash) VALUES (?, ?)",
-    ["repo_test@example.com", "hashedpassword"]
+    "INSERT INTO users (email, password_hash, name) VALUES (?, ?, ?)",
+    ["repo_test@example.com", "hashedpassword", "repo_test"]
   );
   testUserId = result.insertId;
 });

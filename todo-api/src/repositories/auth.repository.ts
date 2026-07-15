@@ -4,6 +4,7 @@ import { pool } from '../db/client';
 type CreateUserInput = {
   email: string;
   password_hash: string;
+  name: string;
 }
 
 export type UserRole = 'admin' | 'member';
@@ -15,6 +16,7 @@ export type User = RowDataPacket & {
   password_hash: string;
   role: UserRole;
   status: AccountStatus;
+  name: string;
 };
 
 export type UserSummary = RowDataPacket & {
@@ -22,9 +24,14 @@ export type UserSummary = RowDataPacket & {
   email: string;
   role: UserRole;
   status: AccountStatus;
+  name: string;
 };
 
 export const AuthRepository = {
+  // SELECT * is intentional here: this is the only lookup that legitimately
+  // needs password_hash (for bcrypt.compare during login), so it isn't
+  // subject to the "never SELECT * for API-facing reads" rule below. `name`
+  // is automatically included as a column on the table.
   async findByEmail(email: string) {
     const [rows] = await pool.query<User[]>(
       'SELECT * FROM users WHERE email = ?',
@@ -33,25 +40,28 @@ export const AuthRepository = {
     return rows[0] ?? null;
   },
 
+  // Explicit column list (no password_hash) because this result can reach an
+  // API response (e.g. /auth/me) — keep this in sync with UserSummary's shape.
   async findById(id: number) {
     const [rows] = await pool.query<User[]>(
-      'SELECT id, email, role, status FROM users WHERE id = ?',
+      'SELECT id, email, role, status, name FROM users WHERE id = ?',
       [id]
     );
     return rows[0] ?? null;
   },
 
+  // Explicit column list (no password_hash) — see findById.
   async findAll() {
     const [rows] = await pool.query<UserSummary[]>(
-      'SELECT id, email, role, status FROM users'
+      'SELECT id, email, role, status, name FROM users'
     );
     return rows;
   },
 
-  async createUser({ email, password_hash }: CreateUserInput) {
+  async createUser({ email, password_hash, name }: CreateUserInput) {
     await pool.query(
-      `INSERT INTO users (email, password_hash) VALUES (?, ?)`,
-      [email, password_hash]
+      `INSERT INTO users (email, password_hash, name) VALUES (?, ?, ?)`,
+      [email, password_hash, name]
     );
   },
 

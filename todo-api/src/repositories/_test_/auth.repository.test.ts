@@ -96,7 +96,7 @@ async function createFixtureUser(
   role: "admin" | "member",
   status: "active" | "disabled"
 ): Promise<number> {
-  await AuthRepository.createUser({ email, password_hash: "hashedpassword" });
+  await AuthRepository.createUser({ email, password_hash: "hashedpassword", name: "Fixture User" });
   const created = await AuthRepository.findByEmail(email);
   if (!created) throw new Error(`fixture user not created: ${email}`);
   await (pool as any).query("UPDATE users SET role = ?, status = ? WHERE id = ?", [
@@ -112,6 +112,7 @@ describe("AuthRepository", () => {
     await AuthRepository.createUser({
       email: TEST_EMAIL,
       password_hash: "hashedpassword",
+      name: "Auth Repo Test",
     });
 
     const created = await AuthRepository.findByEmail(TEST_EMAIL);
@@ -133,10 +134,23 @@ describe("AuthRepository", () => {
     expect(found!.status).toBe("active");
   });
 
-  it("findAll がパスワードハッシュを含まず、role・status付きで全ユーザーを返す", async () => {
+  // Requirement 1.1: 認証済みユーザーが自分のアカウント情報を取得すると
+  // name が含まれること（findById がその読み取り経路）
+  it("findById が作成時に指定した name を含めて返す", async () => {
+    const created = await AuthRepository.findByEmail(TEST_EMAIL);
+    expect(created).not.toBeNull();
+
+    const found = await AuthRepository.findById(created!.id);
+
+    expect(found).not.toBeNull();
+    expect(found!.name).toBe("Auth Repo Test");
+  });
+
+  it("findAll がパスワードハッシュを含まず、role・status・name付きで全ユーザーを返す", async () => {
     await AuthRepository.createUser({
       email: TEST_EMAIL_FINDALL,
       password_hash: "hashedpassword",
+      name: "Auth Repo Test FindAll",
     });
     const created = await AuthRepository.findByEmail(TEST_EMAIL_FINDALL);
     expect(created).not.toBeNull();
@@ -151,6 +165,7 @@ describe("AuthRepository", () => {
     expect(target!.email).toBe(TEST_EMAIL_FINDALL);
     expect(target!.role).toBe("member");
     expect(target!.status).toBe("active");
+    expect(target!.name).toBe("Auth Repo Test FindAll");
     expect(target).not.toHaveProperty("password_hash");
   });
 
