@@ -131,21 +131,7 @@ describe("TodoApp", () => {
     expect(mockUpdateTodo).toHaveBeenCalledWith(2, { status: 0 });
   });
 
-  it("未完了Todoが5件のとき追加ボタンが無効化され警告メッセージが表示される", async () => {
-    const fiveTodos: Todo[] = Array.from({ length: 5 }, (_, i) => ({
-      id: i + 1, title: `Todo${i + 1}`, status: 0 as const,
-      created_at: "2026-01-01T00:00:00Z", updated_at: "2026-01-01T00:00:00Z",
-    }));
-    mockFetchTodos.mockResolvedValueOnce(fiveTodos);
-
-    render(<TodoApp />);
-    await waitFor(() => expect(screen.getByText("Todo1")).toBeInTheDocument());
-
-    expect(screen.getByRole("button", { name: "追加" })).toBeDisabled();
-    expect(screen.getByText("登録できるTodoは5個までです")).toBeInTheDocument();
-  });
-
-  it("追加ボタンが無効のとき、クリックしてもTodoが追加されない", async () => {
+  it("未完了Todoが5件の時点では追加ボタンは有効で、6件目の追加を試みると無効化され警告メッセージが表示される", async () => {
     const user = userEvent.setup();
     const fiveTodos: Todo[] = Array.from({ length: 5 }, (_, i) => ({
       id: i + 1, title: `Todo${i + 1}`, status: 0 as const,
@@ -155,6 +141,32 @@ describe("TodoApp", () => {
 
     render(<TodoApp />);
     await waitFor(() => expect(screen.getByText("Todo1")).toBeInTheDocument());
+
+    expect(screen.getByRole("button", { name: "追加" })).not.toBeDisabled();
+    expect(screen.queryByText("登録できるTodoは5個までです")).not.toBeInTheDocument();
+
+    await user.type(screen.getByPlaceholderText("Todoを入力"), "Todo6");
+    await user.click(screen.getByRole("button", { name: "追加" }));
+
+    expect(mockCreateTodo).not.toHaveBeenCalled();
+    expect(screen.getByRole("button", { name: "追加" })).toBeDisabled();
+    expect(screen.getByText("登録できるTodoは5個までです")).toBeInTheDocument();
+  });
+
+  it("上限到達後にロックされた状態では、再度クリックしてもTodoが追加されない", async () => {
+    const user = userEvent.setup();
+    const fiveTodos: Todo[] = Array.from({ length: 5 }, (_, i) => ({
+      id: i + 1, title: `Todo${i + 1}`, status: 0 as const,
+      created_at: "2026-01-01T00:00:00Z", updated_at: "2026-01-01T00:00:00Z",
+    }));
+    mockFetchTodos.mockResolvedValueOnce(fiveTodos);
+
+    render(<TodoApp />);
+    await waitFor(() => expect(screen.getByText("Todo1")).toBeInTheDocument());
+
+    await user.type(screen.getByPlaceholderText("Todoを入力"), "Todo6");
+    await user.click(screen.getByRole("button", { name: "追加" }));
+    expect(screen.getByRole("button", { name: "追加" })).toBeDisabled();
 
     await user.click(screen.getByRole("button", { name: "追加" }));
 
