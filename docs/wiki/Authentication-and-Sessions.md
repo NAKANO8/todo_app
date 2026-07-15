@@ -80,8 +80,8 @@ Because `@fastify/session`'s built-in sessions can only be looked up by `session
 sequenceDiagram
     participant Admin
     participant API as Fastify
-    participant Idx as user-sessions:&lt;userId&gt; (Redis Set)
-    participant Store as sess:&lt;sessionId&gt; (Redis)
+    participant Idx as Session Index
+    participant Store as Session Store
 
     Admin->>API: DELETE /admin/sessions/:userId
     API->>Idx: SMEMBERS user-sessions:userId
