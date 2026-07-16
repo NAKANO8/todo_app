@@ -27,6 +27,10 @@ export type UserSummary = RowDataPacket & {
   name: string;
 };
 
+type PasswordHashRow = RowDataPacket & {
+  password_hash: string;
+};
+
 export const AuthRepository = {
   // SELECT * is intentional here: this is the only lookup that legitimately
   // needs password_hash (for bcrypt.compare during login), so it isn't
@@ -132,6 +136,46 @@ export const AuthRepository = {
            ) AS other_active_admins
          ))`,
       [newStatus, userId, newStatus, userId]
+    );
+    return result.affectedRows;
+  },
+
+  // Profile screen (profile-screen spec, ProfileService): 対象(userId)の表示名を
+  // name に更新する。updateRole/updateStatus と異なり「最後の管理者」のような
+  // 不変条件は存在しないため、単純な対象行(id)限定のUPDATEのみでよい。
+  // updated_at = NOW() を明示的にSETに含める理由はupdateRole/updateStatusと同じ:
+  // 値が変化しない冪等な再送でもaffectedRows >= 1を得るため。
+  async updateName(userId: number, name: string): Promise<number> {
+    const [result] = await pool.query<ResultSetHeader>(
+      `UPDATE users SET name = ?, updated_at = NOW() WHERE id = ?`,
+      [name, userId]
+    );
+    return result.affectedRows;
+  },
+
+  // Profile screen (profile-screen spec, ProfileService.changePassword): 現在
+  // パスワードの照合(bcrypt.compare)にのみ使う、単一カラムの読み取り。
+  // findByEmail の SELECT * とは異なり、パスワード変更フローは既にuserIdが
+  // 判明している(セッションから取得済み)ため、他の列を一切取得する必要がない。
+  // API応答に到達し得ないコンテキストでも、必要な列だけを取得する方針を守る。
+  async findPasswordHashById(userId: number): Promise<string | null> {
+    const [rows] = await pool.query<PasswordHashRow[]>(
+      'SELECT password_hash FROM users WHERE id = ?',
+      [userId]
+    );
+    return rows[0]?.password_hash ?? null;
+  },
+
+  // Profile screen (profile-screen spec, ProfileService.changePassword): 対象
+  // (userId)のパスワードハッシュを更新する。updateName と同じ理由で
+  // updated_at = NOW() を明示的にSETへ含める。
+  async updatePasswordHash(
+    userId: number,
+    passwordHash: string
+  ): Promise<number> {
+    const [result] = await pool.query<ResultSetHeader>(
+      `UPDATE users SET password_hash = ?, updated_at = NOW() WHERE id = ?`,
+      [passwordHash, userId]
     );
     return result.affectedRows;
   },

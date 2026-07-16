@@ -23,6 +23,17 @@ const STATUS_TEST_EMAILS = [
   "auth_repo_status_test_resend_member@example.com",
 ];
 
+// profile-screen spec, task 2.2 (ProfileService): updateName / findPasswordHashById /
+// updatePasswordHash 用のfixture。他ユーザーの行が影響を受けないことを検証するため
+// 各テストにつき2ユーザー(対象・非対象)を用意する。
+const PROFILE_TEST_EMAILS = [
+  "auth_repo_profile_test_update_name_target@example.com",
+  "auth_repo_profile_test_update_name_other@example.com",
+  "auth_repo_profile_test_find_password_hash@example.com",
+  "auth_repo_profile_test_update_password_hash_target@example.com",
+  "auth_repo_profile_test_update_password_hash_other@example.com",
+];
+
 afterAll(async () => {
   await (pool as any).query("DELETE FROM users WHERE email = ?", [TEST_EMAIL]);
   await (pool as any).query("DELETE FROM users WHERE email = ?", [TEST_EMAIL_FINDALL]);
@@ -30,6 +41,9 @@ afterAll(async () => {
     await (pool as any).query("DELETE FROM users WHERE email = ?", [email]);
   }
   for (const email of STATUS_TEST_EMAILS) {
+    await (pool as any).query("DELETE FROM users WHERE email = ?", [email]);
+  }
+  for (const email of PROFILE_TEST_EMAILS) {
     await (pool as any).query("DELETE FROM users WHERE email = ?", [email]);
   }
   await pool.end();
@@ -403,6 +417,136 @@ describe("AuthRepository", () => {
     it("存在しない userId を対象にした場合、affectedRows は 0 になる", async () => {
       const nonExistentUserId = 999_999_999;
       const affectedRows = await AuthRepository.updateStatus(nonExistentUserId, "disabled");
+      expect(affectedRows).toBe(0);
+    });
+  });
+
+  // profile-screen spec, task 2.2 (ProfileService.updateName): 対象(userId)の
+  // 行だけが更新され、他ユーザーの行は影響を受けないこと(design.md
+  // ProfileService Invariants節: "userIdと一致しないユーザーの行が変更される
+  // ことはない")
+  describe("updateName", () => {
+    it("対象userIdのnameのみを更新し、affectedRowsを返す。他ユーザーの行は変化しない", async () => {
+      await AuthRepository.createUser({
+        email: "auth_repo_profile_test_update_name_target@example.com",
+        password_hash: "hashedpassword",
+        name: "Original Name",
+      });
+      await AuthRepository.createUser({
+        email: "auth_repo_profile_test_update_name_other@example.com",
+        password_hash: "hashedpassword",
+        name: "Other Original Name",
+      });
+      const target = await AuthRepository.findByEmail(
+        "auth_repo_profile_test_update_name_target@example.com"
+      );
+      const other = await AuthRepository.findByEmail(
+        "auth_repo_profile_test_update_name_other@example.com"
+      );
+      expect(target).not.toBeNull();
+      expect(other).not.toBeNull();
+
+      const affectedRows = await AuthRepository.updateName(
+        target!.id,
+        "Updated Name"
+      );
+      expect(affectedRows).toBe(1);
+
+      const updatedTarget = await AuthRepository.findById(target!.id);
+      expect(updatedTarget!.name).toBe("Updated Name");
+
+      // 他ユーザーの行は影響を受けない
+      const unchangedOther = await AuthRepository.findById(other!.id);
+      expect(unchangedOther!.name).toBe("Other Original Name");
+    });
+
+    it("存在しない userId を対象にした場合、affectedRows は 0 になる", async () => {
+      const nonExistentUserId = 999_999_999;
+      const affectedRows = await AuthRepository.updateName(
+        nonExistentUserId,
+        "Someone"
+      );
+      expect(affectedRows).toBe(0);
+    });
+  });
+
+  // profile-screen spec, task 2.2 (ProfileService.changePassword): 現在パスワード
+  // 照合専用の単一カラム読み取り(SELECT * 禁止方針に沿い password_hash のみ取得)
+  describe("findPasswordHashById", () => {
+    it("対象userIdのpassword_hashのみを返す", async () => {
+      await AuthRepository.createUser({
+        email: "auth_repo_profile_test_find_password_hash@example.com",
+        password_hash: "hashed-password-for-lookup",
+        name: "Password Hash Lookup",
+      });
+      const created = await AuthRepository.findByEmail(
+        "auth_repo_profile_test_find_password_hash@example.com"
+      );
+      expect(created).not.toBeNull();
+
+      const passwordHash = await AuthRepository.findPasswordHashById(
+        created!.id
+      );
+
+      expect(passwordHash).toBe("hashed-password-for-lookup");
+    });
+
+    it("存在しない userId を対象にした場合、null を返す", async () => {
+      const nonExistentUserId = 999_999_999;
+      const passwordHash = await AuthRepository.findPasswordHashById(
+        nonExistentUserId
+      );
+      expect(passwordHash).toBeNull();
+    });
+  });
+
+  // profile-screen spec, task 2.2 (ProfileService.changePassword): 対象(userId)の
+  // 行だけが更新され、他ユーザーの行は影響を受けないこと(updateNameと同じ不変条件)
+  describe("updatePasswordHash", () => {
+    it("対象userIdのpassword_hashのみを更新し、affectedRowsを返す。他ユーザーの行は変化しない", async () => {
+      await AuthRepository.createUser({
+        email: "auth_repo_profile_test_update_password_hash_target@example.com",
+        password_hash: "original-hash-target",
+        name: "Password Change Target",
+      });
+      await AuthRepository.createUser({
+        email: "auth_repo_profile_test_update_password_hash_other@example.com",
+        password_hash: "original-hash-other",
+        name: "Password Change Other",
+      });
+      const target = await AuthRepository.findByEmail(
+        "auth_repo_profile_test_update_password_hash_target@example.com"
+      );
+      const other = await AuthRepository.findByEmail(
+        "auth_repo_profile_test_update_password_hash_other@example.com"
+      );
+      expect(target).not.toBeNull();
+      expect(other).not.toBeNull();
+
+      const affectedRows = await AuthRepository.updatePasswordHash(
+        target!.id,
+        "updated-hash-target"
+      );
+      expect(affectedRows).toBe(1);
+
+      const updatedTargetHash = await AuthRepository.findPasswordHashById(
+        target!.id
+      );
+      expect(updatedTargetHash).toBe("updated-hash-target");
+
+      // 他ユーザーの行は影響を受けない
+      const unchangedOtherHash = await AuthRepository.findPasswordHashById(
+        other!.id
+      );
+      expect(unchangedOtherHash).toBe("original-hash-other");
+    });
+
+    it("存在しない userId を対象にした場合、affectedRows は 0 になる", async () => {
+      const nonExistentUserId = 999_999_999;
+      const affectedRows = await AuthRepository.updatePasswordHash(
+        nonExistentUserId,
+        "some-hash"
+      );
       expect(affectedRows).toBe(0);
     });
   });
