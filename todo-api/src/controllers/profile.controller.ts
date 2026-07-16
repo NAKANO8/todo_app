@@ -10,7 +10,8 @@
 import { FastifyRequest, FastifyReply } from "fastify";
 import { ProfileService } from "../services/profile.service";
 import { AppError } from "../errors/AppError";
-import { UpdateNameBody } from "../types/profile";
+import { UpdateNameBody, ChangePasswordBody } from "../types/profile";
+import { getSessionRepository } from "../repositories/sessionRepositoryInstance";
 
 export const ProfileController = {
   async updateName(
@@ -25,6 +26,43 @@ export const ProfileController = {
         return reply.code(err.statusCode).send({ message: err.message });
       }
       req.log.error(err, "update name failed");
+      return reply.code(500).send({ message: "Internal Server Error" });
+    }
+  },
+
+  async changePassword(
+    req: FastifyRequest<{ Body: ChangePasswordBody }>,
+    reply: FastifyReply
+  ) {
+    try {
+      const userId = req.session.userId!;
+      const { currentPassword, newPassword } = req.body;
+      const result = await ProfileService.changePassword(
+        userId,
+        currentPassword,
+        newPassword
+      );
+
+      // Requirement 6.2: ProfileService.changePasswordはSessionService経由で対象
+      // ユーザーの全セッション(このリクエスト自身のセッションを含む)のRedis上の
+      // データと索引を破棄している。@fastify/sessionのonSendフックによる自動再保存
+      // により、このリクエスト自身のセッションデータは(req.session.destroy()を
+      // 呼ばない限り)結果的に復活するが、userId -> sessionId の逆引き索引
+      // (SessionRepository)にはそのままでは戻らない。索引に戻しておかないと、
+      // 将来の管理者による強制無効化(admin.session.controller.ts)の対象として
+      // このセッションが追跡されなくなってしまうため、ここで明示的に再追跡する
+      // (design.md "ProfileController" Implementation Notes参照)。
+      await getSessionRepository().trackSession(userId, req.session.sessionId);
+
+      return reply.send({
+        message: "password updated",
+        invalidatedCount: result.invalidatedCount,
+      });
+    } catch (err) {
+      if (err instanceof AppError) {
+        return reply.code(err.statusCode).send({ message: err.message });
+      }
+      req.log.error(err, "change password failed");
       return reply.code(500).send({ message: "Internal Server Error" });
     }
   },
