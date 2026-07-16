@@ -12,3 +12,9 @@ export const validatePassword = (password: string): string | null => {
   if (!passwordRegex.test(password)) return "8文字以上・大文字1つ・数字1つ以上が必要です";
   return null
 }
+
+export const validateName = (name: string): string | null => {
+  if (!name) return "表示名を入力してください!";
+  if (name.length > 50) return "表示名は1〜50文字で入力してください";
+  return null
+}
