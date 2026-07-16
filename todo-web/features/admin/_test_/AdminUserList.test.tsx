@@ -30,6 +30,7 @@ const mockToastError = vi.mocked(toast.error);
 const adminActive: User = {
   id: 1,
   email: "admin@example.com",
+  name: "Admin",
   role: "admin",
   status: "active",
 };
@@ -37,6 +38,7 @@ const adminActive: User = {
 const memberDisabled: User = {
   id: 2,
   email: "member@example.com",
+  name: "Member",
   role: "member",
   status: "disabled",
 };

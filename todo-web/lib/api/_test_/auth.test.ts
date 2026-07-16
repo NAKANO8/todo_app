@@ -21,8 +21,8 @@ afterEach(() => {
 
 describe("lib/api/auth", () => {
   describe("fetchMe", () => {
-    it("/auth/me にcredentials付きでGETし、現在のユーザー情報を返す", async () => {
-      const me = { id: 1, email: "admin@example.com", role: "admin" };
+    it("/auth/me にcredentials付きでGETし、nameを含む現在のユーザー情報を返す", async () => {
+      const me = { id: 1, email: "admin@example.com", role: "admin", name: "Admin" };
       const fetchMock = vi.fn().mockResolvedValue({
         ok: true,
         json: async () => me,

@@ -6,6 +6,7 @@ export type CurrentUser = {
   id: number;
   email: string;
   role: UserRole;
+  name: string;
 };
 
 export async function fetchMe(): Promise<CurrentUser> {

@@ -13,6 +13,7 @@ export type AccountStatus = "active" | "disabled";
 export type User = {
   id: number;
   email: string;
+  name: string;
   role: UserRole;
   status: AccountStatus;
 };
