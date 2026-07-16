@@ -62,6 +62,31 @@ describe("TodoApp", () => {
     expect(screen.queryByRole("link", { name: "管理者画面" })).not.toBeInTheDocument();
   });
 
+  it("一般ユーザーでログインしている場合でも、プロフィールへのリンクが表示され/profileを指す", async () => {
+    render(<TodoApp />);
+
+    const link = await screen.findByRole("link", { name: "プロフィール" });
+    expect(link).toHaveAttribute("href", "/profile");
+  });
+
+  it("管理者でログインしている場合でも、プロフィールへのリンクが表示される", async () => {
+    mockFetchMe.mockResolvedValue({ id: 1, email: "admin@example.com", role: "admin", name: "Admin" });
+
+    render(<TodoApp />);
+
+    const link = await screen.findByRole("link", { name: "プロフィール" });
+    expect(link).toHaveAttribute("href", "/profile");
+  });
+
+  it("管理者の場合、ヘッダー右側のボタン群コンテナがflex-wrapで折り返される", async () => {
+    mockFetchMe.mockResolvedValue({ id: 1, email: "admin@example.com", role: "admin", name: "Admin" });
+
+    render(<TodoApp />);
+
+    const link = await screen.findByRole("link", { name: "プロフィール" });
+    expect(link.parentElement).toHaveClass("flex-wrap");
+  });
+
   it("ユーザー情報の取得に失敗した場合、管理者画面へのリンクは表示されない", async () => {
     mockFetchMe.mockRejectedValue(new Error("network error"));
 
