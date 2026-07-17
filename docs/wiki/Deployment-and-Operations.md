@@ -68,6 +68,7 @@ flowchart LR
 - Skips the (expensive) build/deploy steps entirely if the diff between the last two commits touches nothing under `todo-api/`, `todo-web/`, or `docker-compose*` — e.g. a docs-only commit does not trigger a deploy
 - Deploys by SSH-ing into the server and re-running `docker compose pull && up -d` against the already-pushed images — the server never runs a build itself
 - Health check deliberately expects **`401`** from `GET /auth/me` (not `200`) — a fresh curl request has no session cookie, so `401 Unauthorized` is the *correct* response and proves the API is actually up and evaluating auth, not just accepting TCP connections
+- **This health check does not validate authenticated code paths.** It only proves the process is up and rejecting anonymous requests — it would still report success even if every authenticated query were broken (e.g. a `SELECT` on a column that doesn't exist in prod yet). Since there's **no manual approval gate** between a CI-passing `main` push and a live prod deploy, a schema-adding PR that merges before its migration has been applied to prod can break login-adjacent functionality for real users without CD ever noticing. See [Database Schema § `users.name` backfill](Database-Schema#usersname-backfill-profile-screen-feature) for a concrete example and the required migrate-before-or-with-deploy ordering.
 
 Required GitHub Secrets: `SERVER_HOST`, `SERVER_USER`, `SERVER_SSH_KEY`, `SERVER_PORT`, `SERVER_DEPLOY_PATH`.
 

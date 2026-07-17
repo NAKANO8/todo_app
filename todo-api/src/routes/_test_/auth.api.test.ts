@@ -71,7 +71,11 @@ describe("Auth API", () => {
       });
 
       expect(meRes.statusCode).toBe(200);
-      expect(meRes.json()).toMatchObject({ email: ROLE_DEFAULT_TEST_EMAIL, role: "member" });
+      const body = meRes.json();
+      expect(body).toMatchObject({ email: ROLE_DEFAULT_TEST_EMAIL, role: "member" });
+      // Requirement 1.1: 新規登録されたユーザーも name を持ち、/auth/me で取得できる
+      expect(typeof body.name).toBe("string");
+      expect(body.name.length).toBeGreaterThan(0);
     });
 
     it("登録リクエストに role を含めても無視され、登録は member ロールで成功する", async () => {
@@ -106,9 +110,12 @@ describe("Auth API", () => {
   describe("導入前から存在するアカウントの継続利用", () => {
     it("role を指定せずに直接挿入されたアカウントは既定の member ロールを持ち、ログインおよび /auth/me が引き続き成功する", async () => {
       const password_hash = await bcrypt.hash(PRE_EXISTING_ACCOUNT_PASSWORD, 10);
+      // Simulates a row already backfilled by the Requirement 4.1 migration
+      // (name = local part of email), since `name` is NOT NULL and this
+      // bypasses AuthRepository.createUser entirely.
       await (pool as any).query(
-        "INSERT INTO users (email, password_hash) VALUES (?, ?)",
-        [PRE_EXISTING_ACCOUNT_EMAIL, password_hash]
+        "INSERT INTO users (email, password_hash, name) VALUES (?, ?, ?)",
+        [PRE_EXISTING_ACCOUNT_EMAIL, password_hash, PRE_EXISTING_ACCOUNT_EMAIL.split("@")[0]]
       );
 
       const loginRes = await app.inject({
@@ -182,7 +189,13 @@ describe("Auth API", () => {
       });
 
       expect(res.statusCode).toBe(200);
-      expect(res.json()).toMatchObject({ email: TEST_EMAIL, role: "member" });
+      const body = res.json();
+      // Requirement 1.1: 認証済みユーザーは自分の name を取得できる
+      expect(body).toMatchObject({ email: TEST_EMAIL, role: "member" });
+      expect(typeof body.name).toBe("string");
+      expect(body.name.length).toBeGreaterThan(0);
+      // password_hash は決してレスポンスに含めない
+      expect(body).not.toHaveProperty("password_hash");
     });
   });
 

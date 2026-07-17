@@ -22,8 +22,8 @@ describe("users table status column (Requirements 3.1, 3.2)", () => {
 
   it("assigns 'active' status to a newly inserted row by default (Requirement 3.1)", async () => {
     await (pool as any).query(
-      "INSERT INTO users (email, password_hash) VALUES (?, ?)",
-      [TEST_EMAIL, "hashedpassword"]
+      "INSERT INTO users (email, password_hash, name) VALUES (?, ?, ?)",
+      [TEST_EMAIL, "hashedpassword", "users_schema_test"]
     );
 
     const [rows]: any = await (pool as any).query(
