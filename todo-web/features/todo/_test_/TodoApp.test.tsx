@@ -43,11 +43,11 @@ describe("TodoApp", () => {
     mockCreateTodo.mockResolvedValue(undefined);
     mockUpdateTodo.mockResolvedValue(undefined);
     mockDeleteTodo.mockResolvedValue(undefined);
-    mockFetchMe.mockResolvedValue({ id: 1, email: "member@example.com", role: "member" });
+    mockFetchMe.mockResolvedValue({ id: 1, email: "member@example.com", role: "member", name: "Member" });
   });
 
   it("管理者でログインしている場合、管理者画面へのリンクが表示される", async () => {
-    mockFetchMe.mockResolvedValue({ id: 1, email: "admin@example.com", role: "admin" });
+    mockFetchMe.mockResolvedValue({ id: 1, email: "admin@example.com", role: "admin", name: "Admin" });
 
     render(<TodoApp />);
 
