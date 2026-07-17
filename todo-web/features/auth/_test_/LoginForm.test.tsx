@@ -71,5 +71,50 @@ describe("LoginForm", () => {
       render(<LoginForm mode="register" />);
       expect(screen.getByRole("link", { name: "ログイン" })).toHaveAttribute("href", "/login");
     });
+
+    it("表示名・メールアドレス・パスワード入力欄と送信ボタンが表示される", () => {
+      render(<LoginForm mode="register" />);
+      expect(screen.getByPlaceholderText("表示名")).toBeInTheDocument();
+      expect(screen.getByPlaceholderText("メールアドレス")).toBeInTheDocument();
+      expect(screen.getByPlaceholderText("パスワード")).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "新規登録" })).toBeInTheDocument();
+    });
+
+    it('表示名が空で送信すると "表示名を入力してください!" が表示される', async () => {
+      const user = userEvent.setup();
+      render(<LoginForm mode="register" />);
+      await user.type(screen.getByPlaceholderText("メールアドレス"), "test@example.com");
+      await user.type(screen.getByPlaceholderText("パスワード"), "Password1");
+      await user.click(screen.getByRole("button", { name: "新規登録" }));
+      expect(screen.getByText("表示名を入力してください!")).toBeInTheDocument();
+    });
+
+    it('51文字の表示名で送信すると "表示名は1〜50文字で入力してください" が表示される', async () => {
+      const user = userEvent.setup();
+      render(<LoginForm mode="register" />);
+      await user.type(screen.getByPlaceholderText("表示名"), "a".repeat(51));
+      await user.type(screen.getByPlaceholderText("メールアドレス"), "test@example.com");
+      await user.type(screen.getByPlaceholderText("パスワード"), "Password1");
+      await user.click(screen.getByRole("button", { name: "新規登録" }));
+      expect(screen.getByText("表示名は1〜50文字で入力してください")).toBeInTheDocument();
+    });
+
+    it("有効な表示名・メールアドレス・パスワードで送信するとエラーが表示されない", async () => {
+      const user = userEvent.setup();
+      render(<LoginForm mode="register" />);
+      await user.type(screen.getByPlaceholderText("表示名"), "テストユーザー");
+      await user.type(screen.getByPlaceholderText("メールアドレス"), "test@example.com");
+      await user.type(screen.getByPlaceholderText("パスワード"), "Password1");
+      await user.click(screen.getByRole("button", { name: "新規登録" }));
+      expect(screen.queryByText("表示名を入力してください!")).not.toBeInTheDocument();
+      expect(screen.queryByText("表示名は1〜50文字で入力してください")).not.toBeInTheDocument();
+    });
+  });
+
+  describe("login mode does not include name", () => {
+    it("表示名入力欄は表示されない", () => {
+      render(<LoginForm mode="login" />);
+      expect(screen.queryByPlaceholderText("表示名")).not.toBeInTheDocument();
+    });
   });
 });

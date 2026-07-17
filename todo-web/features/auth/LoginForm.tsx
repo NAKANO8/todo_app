@@ -1,7 +1,7 @@
 'use client'
 import React, { useState } from "react";
 import Link from "next/link";
-import { validateEmail, validatePassword } from "../../lib/validation";
+import { validateEmail, validatePassword, validateName } from "../../lib/validation";
 import styles from "./LoginForm.module.css";
 
 type Props = {
@@ -9,19 +9,21 @@ type Props = {
 };
 
 export default function LoginForm({ mode = "login" }: Props) {
+  const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [errors, setErrors] = useState<{ email?: string; password?: string }>({});
+  const [errors, setErrors] = useState<{ name?: string; email?: string; password?: string }>({});
 
   const action = mode === "login" ? "/api/auth/login" : "/api/auth/register";
   const title = mode === "login" ? "ログイン" : "新規登録";
 
   const handleSubmit = (e: React.SubmitEvent<HTMLFormElement>) => {
     e.preventDefault();
+    const nameError = mode === "register" ? validateName(name) : null;
     const emailError = validateEmail(email);
     const passwordError = validatePassword(password);
-    if (emailError || passwordError) {
-      setErrors({ email: emailError ?? undefined, password: passwordError ?? undefined });
+    if (nameError || emailError || passwordError) {
+      setErrors({ name: nameError ?? undefined, email: emailError ?? undefined, password: passwordError ?? undefined });
       return;
     }
     e.currentTarget.submit();
@@ -47,6 +49,20 @@ export default function LoginForm({ mode = "login" }: Props) {
 
           <form action={action} method="POST" onSubmit={handleSubmit}>
             <div className={styles.fields}>
+              {mode === "register" && (
+                <div className={styles.field}>
+                  <input
+                    className={`${styles.input} ${errors.name ? styles.inputError : ""}`}
+                    type="text"
+                    placeholder="表示名"
+                    name="name"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                  />
+                  {errors.name && <p className={styles.errorMsg}>{errors.name}</p>}
+                </div>
+              )}
+
               <div className={styles.field}>
                 <input
                   className={`${styles.input} ${errors.email ? styles.inputError : ""}`}
