@@ -18,6 +18,7 @@ export default function TodoApp() {
   const [inputValue, setInputValue] = useState("");
   const [todos, setTodos] = useState<Todo[]>([]);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [displayName, setDisplayName] = useState<string | null>(null);
   const [limitAttempted, setLimitAttempted] = useState(false);
 
   useEffect(() => {
@@ -26,7 +27,10 @@ export default function TodoApp() {
 
   useEffect(() => {
     fetchMe()
-      .then((me) => setIsAdmin(me.role === "admin"))
+      .then((me) => {
+        setIsAdmin(me.role === "admin");
+        setDisplayName(me.name);
+      })
       .catch(() => setIsAdmin(false));
   }, []);
 
@@ -89,6 +93,11 @@ export default function TodoApp() {
           <div className="text-base font-bold tracking-tight text-[#1c2024]">
             Todo<span className="font-medium text-[#6b6f76]"> App</span>
           </div>
+          {displayName && (
+            <span className="text-[13px] font-medium text-[#6b6f76] ml-1">
+              {displayName}
+            </span>
+          )}
         </div>
         <div className="flex items-center gap-2 flex-wrap">
           {isAdmin && (

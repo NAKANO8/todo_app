@@ -47,6 +47,7 @@
 
 #### Acceptance Criteria
 1. When ログイン中のユーザーがプロフィール画面を開く, the プロフィール機能 shall 現在設定されている表示名を提示する。
+2. When ログイン中のユーザーがTodo画面を開く, the プロフィール機能 shall Todo画面のヘッダーに現在設定されている表示名を提示する。
 
 ### Requirement 2: 自分自身の表示名の変更
 **Objective:** As a ログイン中のユーザー, I want 自分の表示名を変更したい, so that 自分の情報を最新の状態に保てる

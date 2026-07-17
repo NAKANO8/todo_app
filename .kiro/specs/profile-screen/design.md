@@ -34,6 +34,7 @@
 - パスワード変更エンドポイントへの専用レート制限
 - todo-web側のプロフィール画面（表示名の表示・変更、パスワード変更のUI）
 - 登録フォーム（`LoginForm.tsx`の`mode==="register"`時）への`name`入力欄の追加
+- Todo画面（`TodoApp.tsx`）ヘッダーへの自分の表示名の表示（既存の`fetchMe()`呼び出しを流用、新規API呼び出しなし）
 
 ### Out of Boundary
 - アバター画像アップロード
@@ -240,6 +241,7 @@ sequenceDiagram
 | Requirement | Summary | Components | Interfaces | Flows |
 |---|---|---|---|---|
 | 1.1 | プロフィール画面で表示名を提示 | AuthService.me, AuthRepository.findById | `GET /auth/me` | - |
+| 1.2 | Todo画面ヘッダーで表示名を提示 | TodoApp（拡張）, lib/api/auth (fetchMe) | `GET /auth/me` | - |
 | 2.1 | 表示名を変更 | ProfileService.updateName, AuthRepository.updateName | `PATCH /profile/name` | - |
 | 2.2 | 変更後の表示名を1〜50文字に制限 | profile.route.ts (nameFieldSchema) | `PATCH /profile/name` | - |
 | 2.3 | 変更後、次回取得時に反映 | AuthService.me（既存・無変更） | `GET /auth/me` | - |
@@ -269,6 +271,7 @@ sequenceDiagram
 | `AuthService`（拡張） | API / Service | 登録時のname保存、`/auth/me`でのname返却 | 1.1, 3.1 | AuthRepository (P0) | Service |
 | `ProfileForm`（todo-web） | Web / Feature | 表示名の表示/変更、パスワード変更UI | 1.1, 2.1, 5.1 | lib/api/profile (P0), lib/api/auth (P0) | - |
 | `LoginForm`（拡張, todo-web） | Web / Feature | 登録時のname入力 | 3.1, 3.3 | - | - |
+| `TodoApp`（拡張, todo-web） | Web / Feature | Todo画面ヘッダーに自分の表示名を提示 | 1.2 | lib/api/auth (fetchMe、既存の呼び出しを流用) | - |
 
 ### API / Guard
 
@@ -402,6 +405,23 @@ function changeProfilePassword(
 - `handleSubmit`で`validateName`によるクライアント側チェックを追加し、`mode==="login"`のときは従来通りemail/passwordのみを検証する
 
 **Contracts**: なし（既存コンポーネントへの条件分岐追加）
+
+#### TodoApp（拡張）
+
+| Field | Detail |
+|-------|--------|
+| Intent | Todo画面ヘッダーに自分の表示名を提示する |
+| Requirements | 1.2 |
+
+**Responsibilities & Constraints**
+- `TodoApp`は既に`isAdmin`判定のために`fetchMe()`を呼んでいる（タスク4.3で追加済み）。この既存の呼び出し結果（`me.name`）をヘッダーに表示するだけで、新たなAPI呼び出しは追加しない
+- 表示位置はヘッダー左側（ロゴ/ワードマークの隣）とし、右側の「管理者画面」「プロフィール」「ログアウト」ボタン群とは干渉しない
+- 表示名が未取得（`fetchMe`失敗時）の間は何も表示しない（既存の`isAdmin`同様、失敗時はデフォルト値のまま握りつぶす。ログイン画面へのリダイレクトは既存middlewareの責務）
+
+**Contracts**: なし（既存コンポーネントへの表示追加のみ）
+
+**Implementation Notes**
+- Integration: 「本機能導入前から存在するアカウント」も1.1のバックフィルによりこの時点で必ずnameを持つため、空表示になるケースはない
 
 ## Data Models
 

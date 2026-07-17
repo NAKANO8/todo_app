@@ -96,6 +96,24 @@ describe("TodoApp", () => {
     expect(screen.queryByRole("link", { name: "管理者画面" })).not.toBeInTheDocument();
   });
 
+  it("Todo画面を開くと、ヘッダーに自分の現在の表示名が表示される", async () => {
+    mockFetchMe.mockResolvedValue({ id: 1, email: "member@example.com", role: "member", name: "ハンター次郎" });
+
+    render(<TodoApp />);
+
+    expect(await screen.findByText("ハンター次郎")).toBeInTheDocument();
+  });
+
+  it("ユーザー情報の取得に失敗した場合、ヘッダーに表示名は表示されない(壊れた表示にならない)", async () => {
+    mockFetchMe.mockRejectedValue(new Error("network error"));
+
+    render(<TodoApp />);
+    await waitFor(() => expect(screen.getByText("未完了Todo")).toBeInTheDocument());
+
+    expect(screen.queryByText("undefined")).not.toBeInTheDocument();
+    expect(screen.queryByText("null")).not.toBeInTheDocument();
+  });
+
   it("マウント時にフェッチされたTodoが表示される", async () => {
     render(<TodoApp />);
     await waitFor(() => expect(screen.getByText("未完了Todo")).toBeInTheDocument());
