@@ -90,7 +90,7 @@ export default function TodoApp() {
             Todo<span className="font-medium text-[#6b6f76]"> App</span>
           </div>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
           {isAdmin && (
             <Link
               href="/admin/users"
@@ -99,6 +99,12 @@ export default function TodoApp() {
               管理者画面
             </Link>
           )}
+          <Link
+            href="/profile"
+            className="text-[13px] font-semibold text-[#6b6f76] bg-[#f1efea] rounded-lg px-[14px] py-[7px] hover:bg-[#e6e4df] hover:text-[#1c2024]"
+          >
+            プロフィール
+          </Link>
           <form action="/api/auth/logout" method="POST">
             <button
               type="submit"

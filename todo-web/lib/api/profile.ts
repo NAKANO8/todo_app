@@ -6,6 +6,15 @@
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE!;
 
+// design.md 389行目: 429の場合は他のエラーと区別できるメッセージを表示する必要があるため、
+// 呼び出し元(ProfileForm.tsx)がstatusで分岐できるよう、投げるErrorにstatusを付与する。
+// Errorのpublicな契約(instanceof Error, message)は変えない追加的な変更。
+function throwWithStatus(message: string, status: number): never {
+  const err = new Error(message) as Error & { status?: number };
+  err.status = status;
+  throw err;
+}
+
 export async function updateProfileName(name: string): Promise<void> {
   const res = await fetch(`${API_BASE}/profile/name`, {
     method: "PATCH",
@@ -14,7 +23,7 @@ export async function updateProfileName(name: string): Promise<void> {
     credentials: "include",
   });
 
-  if (!res.ok) throw new Error("Failed to update profile name");
+  if (!res.ok) throwWithStatus("Failed to update profile name", res.status);
 }
 
 export async function changeProfilePassword(
@@ -28,6 +37,6 @@ export async function changeProfilePassword(
     credentials: "include",
   });
 
-  if (!res.ok) throw new Error("Failed to change password");
+  if (!res.ok) throwWithStatus("Failed to change password", res.status);
   return res.json();
 }

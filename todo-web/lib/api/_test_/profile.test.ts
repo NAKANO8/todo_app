@@ -52,7 +52,9 @@ describe("lib/api/profile", () => {
       );
 
       const { updateProfileName } = await loadProfileModule();
-      await expect(updateProfileName("")).rejects.toThrow();
+      const error = await updateProfileName("").catch((e) => e);
+      expect(error).toBeInstanceOf(Error);
+      expect((error as Error & { status?: number }).status).toBe(400);
     });
   });
 
@@ -87,12 +89,12 @@ describe("lib/api/profile", () => {
       );
 
       const { changeProfilePassword } = await loadProfileModule();
-      await expect(
-        changeProfilePassword("wrongPass", "newPass1")
-      ).rejects.toThrow();
+      const error = await changeProfilePassword("wrongPass", "newPass1").catch((e) => e);
+      expect(error).toBeInstanceOf(Error);
+      expect((error as Error & { status?: number }).status).toBe(401);
     });
 
-    it("レート制限に達した場合(429)はエラーを投げる", async () => {
+    it("レート制限に達した場合(429)はエラーを投げ、他と区別できるようstatusにも429を持つ", async () => {
       vi.stubGlobal(
         "fetch",
         vi.fn().mockResolvedValue({
@@ -103,9 +105,9 @@ describe("lib/api/profile", () => {
       );
 
       const { changeProfilePassword } = await loadProfileModule();
-      await expect(
-        changeProfilePassword("oldPass1", "newPass1")
-      ).rejects.toThrow();
+      const error = await changeProfilePassword("oldPass1", "newPass1").catch((e) => e);
+      expect(error).toBeInstanceOf(Error);
+      expect((error as Error & { status?: number }).status).toBe(429);
     });
   });
 });
