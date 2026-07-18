@@ -53,20 +53,20 @@
 graph TB
     WebClient[todo web client]
     WebClient --> TodosRoute[todos routes]
-    TodosRoute --> TodosController[todos controller]
-    TodosController --> TodosService[todos service]
-    TodosService --> RotCalculator[rot calculator]
-    TodosService --> HelpService[help service]
-    TodosService --> EstimateService[estimate approval service]
+    TodosRoute --> TodoController[todos controller]
+    TodoController --> TodoService[todos service]
+    TodoService --> RotCalculator[rot calculator]
+    TodoService --> HelpService[help service]
+    TodoService --> EstimateService[estimate approval service]
     HelpService --> GroupLookup[team management group lookup]
     EstimateService --> GroupLookup
-    TodosService --> TodosRepository[todos repository]
-    TodosRepository --> Prisma[prisma client]
+    TodoService --> TodoRepository[todos repository]
+    TodoRepository --> Prisma[prisma client]
 ```
 
 **Architecture Integration**:
 - Selected pattern: 既存レイヤードアーキテクチャの拡張（新レイヤーは導入しない）
-- Domain/feature boundaries: 腐敗算出（`RotCalculator`）・ヘルプ（`HelpService`）・見積もり承認（`EstimateApprovalService`）を`TodosService`から呼び出される独立ドメインサービスとして分離し、それぞれが単一の責務を持つ
+- Domain/feature boundaries: 腐敗算出（`RotCalculator`）・ヘルプ（`HelpService`）・見積もり承認（`EstimateApprovalService`）を`TodoService`から呼び出される独立ドメインサービスとして分離し、それぞれが単一の責務を持つ
 - Existing patterns preserved: `AppError`によるエラー処理、`user_id`/グループスコープでの認可、サーバー側で真実を持つ方針（クライアントを信用しない）
 - New components rationale: `RotCalculator`は軸A・軸B・ヘルプSLAで共通の「経過時間→段階」ロジックを再利用するために独立させる（research.md参照）
 - Steering compliance: サーバーサイドauth guardと同じ思想で、可視性・腐敗レベルもサーバー側で確定させる
@@ -170,23 +170,23 @@ stateDiagram-v2
 
 | Requirement | Summary | Components | Interfaces | Flows |
 |-------------|---------|------------|------------|-------|
-| 1.1-1.3 | 締切の設定・任意性 | TodosService, TodosRepository | PATCH /todos/:id | - |
-| 2.1-2.5 | 軸A: 締切比率による段階・当日/超過後着手の初期値 | RotCalculator, TodosService | GET /todos (rotLevel) | 腐敗レベル算出 |
-| 3.1-3.4 | 軸B: 着手ラグ・分割導線・子タスクのリセット | RotCalculator, TodosService | GET /todos, POST /todos (parentTodoId) | 腐敗レベル算出 |
-| 4.1-4.3 | blocked緩和 | RotCalculator, TodosService | PATCH /todos/:id (blockedReason/blockedReviewAt) | 腐敗レベル算出 |
-| 5.1-5.2 | 意思決定アクションによるリセット | TodosService | POST /todos/:id/decision-actions | 腐敗レベル算出 |
+| 1.1-1.3 | 締切の設定・任意性 | TodoService, TodoRepository | PATCH /todos/:id | - |
+| 2.1-2.5 | 軸A: 締切比率による段階・当日/超過後着手の初期値 | RotCalculator, TodoService | GET /todos (rotLevel) | 腐敗レベル算出 |
+| 3.1-3.4 | 軸B: 着手ラグ・分割導線・子タスクのリセット | RotCalculator, TodoService | GET /todos, POST /todos (parentTodoId) | 腐敗レベル算出 |
+| 4.1-4.3 | blocked緩和 | RotCalculator, TodoService | PATCH /todos/:id (blockedReason/blockedReviewAt) | 腐敗レベル算出 |
+| 5.1-5.2 | 意思決定アクションによるリセット | TodoService | POST /todos/:id/decision-actions | 腐敗レベル算出 |
 | 6.1-6.6 | アプリ内通知3段階・集約・再出現 | ModerateToast, SevereBanner, AggregatedNotification, rotPolling | GET /todos (rotLevel) | 腐敗レベル算出とポーリング |
-| 7.1-7.6 | ヘルプ発火・公開・対応中表示 | HelpService, TodosService | POST /todos/:id/help, POST /todos/:id/help/resolve | ヘルプ発火とリーダーへの腐敗連鎖 |
+| 7.1-7.6 | ヘルプ発火・公開・対応中表示 | HelpService, TodoService | POST /todos/:id/help, POST /todos/:id/help/resolve | ヘルプ発火とリーダーへの腐敗連鎖 |
 | 8.1-8.4 | ヘルプ放置のリーダー連鎖 | HelpService, RotCalculator | GET /todos/:id (help escalation level) | ヘルプ発火とリーダーへの腐敗連鎖 |
-| 9.1-9.5 | 可視性の分岐 | TodosService | GET /group/:groupId/todos | 可視性の状態遷移 |
-| 10.1-10.4 | 見積もりギャップ承認 | EstimateApprovalService, TodosService | POST /todos/:id/estimate, POST /todos/:id/estimate/approve | - |
+| 9.1-9.5 | 可視性の分岐 | TodoService | GET /group/:groupId/todos | 可視性の状態遷移 |
+| 10.1-10.4 | 見積もりギャップ承認 | EstimateApprovalService, TodoService | POST /todos/:id/estimate, POST /todos/:id/estimate/approve | - |
 
 ## Components and Interfaces
 
 | Component | Domain/Layer | Intent | Req Coverage | Key Dependencies (P0/P1) | Contracts |
 |-----------|--------------|--------|--------------|---------------------------|-----------|
 | RotCalculator | Service (domain) | 経過時間としきい値から腐敗段階を算出する純粋関数群 | 2, 3, 4, 8 | なし（純粋関数） | Service |
-| TodosService (拡張) | Service | 締切・意思決定アクション・可視性・腐敗レベルを統合してTodoを返す | 1, 2, 3, 4, 5, 9 | RotCalculator (P0), TodosRepository (P0), task-status-model status (P0), task-assignment assigneeId (P0) | Service, API |
+| TodoService (拡張) | Service | 締切・意思決定アクション・可視性・腐敗レベルを統合してTodoを返す | 1, 2, 3, 4, 5, 9 | RotCalculator (P0), TodoRepository (P0), task-status-model status (P0), task-assignment assigneeId (P0) | Service, API |
 | HelpService | Service (domain) | ヘルプ発火/解決、group_leaderへの通知先解決 | 7, 8 | RotCalculator (P0), team-management group lookup (P0) | Service, API |
 | EstimateApprovalService | Service (domain) | 見積もり入力とギャップ判定、group_leader承認 | 10 | team-management group_leader判定 (P0) | Service, API |
 
@@ -237,7 +237,7 @@ interface RotCalculator {
 
 ### Application Services
 
-#### TodosService（拡張）
+#### TodoService（拡張）
 
 | Field | Detail |
 |-------|--------|
@@ -251,8 +251,8 @@ interface RotCalculator {
 - タスク分割（`parentTodoId`を持つ子タスクの作成）時、子タスクの`createdAt`を着手ラグの起点として扱う（3.4、`RotCalculator`へは子タスク自身の`createdAt`を渡すだけで自然に満たされる）
 
 **Dependencies**
-- Inbound: TodosController — Todo一覧/詳細/更新のリクエストを受け取る (P0)
-- Outbound: RotCalculator — 腐敗レベル算出 (P0)、TodosRepository — 永続化 (P0)
+- Inbound: TodoController — Todo一覧/詳細/更新のリクエストを受け取る (P0)
+- Outbound: RotCalculator — 腐敗レベル算出 (P0)、TodoRepository — 永続化 (P0)
 - External: `task-status-model`のステータス値 (P0)、`task-assignment`の`assigneeId` (P0)
 
 **Contracts**: Service [x] / API [x]
@@ -279,7 +279,7 @@ interface RotCalculator {
 - `help_resolved_at`が設定されるまで、対象タスクは健全表示（`healthy`）を返さない（7.5）
 
 **Dependencies**
-- Inbound: TodosController (P0)
+- Inbound: TodoController (P0)
 - Outbound: RotCalculator (P0)
 - External: `team-management`の`group_leader`解決API (P0)
 
@@ -305,8 +305,8 @@ interface RotCalculator {
 - `group_leader`のみが承認操作を行える。承認者が対象タスクの所属グループの`group_leader`であることを`team-management`経由で検証する
 
 **Dependencies**
-- Inbound: TodosController (P0)
-- Outbound: TodosRepository (P0)
+- Inbound: TodoController (P0)
+- Outbound: TodoRepository (P0)
 - External: `team-management`の`group_leader`判定 (P0)、`task-status-model`の`in_progress`遷移イベント (P0)
 
 **Contracts**: Service [x] / API [x]
@@ -360,7 +360,7 @@ interface RotCalculator {
 ## Testing Strategy
 
 - **Unit Tests**: `RotCalculator`の軸A/軸B/ヘルプSLA各境界値（2.1-2.5, 3.1-3.2, 8.2-8.3）、`blockedReviewAt`緩和の適用/失効（4.1-4.3）、意思決定アクションによるリセット（5.1-5.2）
-- **Integration Tests**: `TodosService`が`rotLevel`と`isVisibleToGroup`を一貫して返すこと（9.1-9.5）、ヘルプ発火から`group_leader`通知までの一連の流れ（7.2, 8.1）、見積もりギャップ判定から承認までのフロー（10.1-10.4）
+- **Integration Tests**: `TodoService`が`rotLevel`と`isVisibleToGroup`を一貫して返すこと（9.1-9.5）、ヘルプ発火から`group_leader`通知までの一連の流れ（7.2, 8.1）、見積もりギャップ判定から承認までのフロー（10.1-10.4）
 - **E2E/UI Tests**: 締切当日着手で中度スタート・超過後着手で重度スタートになる表示（2.4-2.5）、重度通知が閉じても再出現すること（6.4）、複数タスク重度化時に集約通知になること（6.5）
 
 ## Security Considerations
