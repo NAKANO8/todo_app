@@ -7,7 +7,7 @@
 - [ ] orm-migration -- Prisma ORM導入と既存スキーマ・クエリの移行。Dependencies: none
 - [ ] team-management -- groups/membershipテーブル追加、`group_leader`ロール追加、グループスコープの認可基盤。Dependencies: orm-migration
 - [ ] task-status-model -- Todoステータスを`pending`/`in_progress`/`blocked`/`done`の4値に拡張。Dependencies: orm-migration
-- [ ] task-assignment -- Todoへの担当者（`assignee_id`）の割り当て。Dependencies: team-management
+- [ ] task-assignment -- Todoへの担当者（`assignee_id`）の割り当て。Dependencies: team-management, task-status-model（cross-spec reviewで発見: `TodoRepository.create`/`update`を共通で拡張するため`task-status-model`への依存も必要）
 - [x] task-rot-detection -- `due_date`フィールド追加、経過時間ベースの腐敗信号計算、可視性分岐と通知/ヘルプ機能。Dependencies: team-management, task-status-model, task-assignment（requirements/design承認済み、実装は依存spec完了後）
 - [ ] redmine-integration -- Redmineチケットを起点とした一方向のTodo自動生成・ステータス反映。Dependencies: task-status-model
 
