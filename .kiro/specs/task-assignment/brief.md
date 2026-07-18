@@ -26,7 +26,7 @@ Todoに`assignee_id`（nullable、`users`への参照）を追加する。グル
 - アサイン変更時の通知（`task-rot-detection`側の責務として検討）
 
 ## Upstream / Downstream
-- **Upstream**: `orm-migration`（Prisma移行後のスキーマ変更として実施）、`team-management`（担当者候補となるグループメンバーシップ情報を提供）
+- **Upstream**: `orm-migration`（Prisma移行後のスキーマ変更として実施）、`team-management`（担当者候補となるグループメンバーシップ情報を提供）、`task-status-model`（`TodoRepository.create`/`update`の`status`引数を共通で拡張するため、その型定義に従う）
 - **Downstream**: `task-rot-detection`（「アサインされたグループタスク」の可視性判定に本specの担当者情報を利用する）
 
 ## Existing Spec Touchpoints
@@ -34,6 +34,6 @@ Todoに`assignee_id`（nullable、`users`への参照）を追加する。グル
 - **Adjacent**: `team-management`（メンバー一覧取得APIに依存）、`redmine-integration`（Redmine連携で取り込まれたTodoに担当者を設定するかは設計フェーズで検討）
 
 ## Constraints
-- `team-management`の完了後に着手すること
+- `team-management`・`task-status-model`の完了後に着手すること
 - 担当者候補は、タスクが属するグループのメンバーに限定すること（グループ外のユーザーをアサインできない）
 - グループに所属しない個人利用者は、アサイン先候補が存在しないためアサイン機能自体を使用できない
