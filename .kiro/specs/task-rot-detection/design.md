@@ -76,7 +76,7 @@ graph TB
 | Layer | Choice / Version | Role in Feature | Notes |
 |-------|------------------|-----------------|-------|
 | Backend / Services | Fastify 5 + TypeScript strict（既存） | 腐敗レベル算出・可視性導出・ヘルプ/見積もり承認API | 新規ライブラリ追加なし |
-| Data / Storage | MySQL 2 + Prisma Client（`orm-migration`後） | `todos`テーブルへの列追加 | 新規テーブルは作らない（research.md参照） |
+| Data / Storage | MySQL 2（永続化層の実装は`orm-migration`が確定させるものをそのまま利用。本specはPrismaの導入自体を行わない） | `todos`テーブルへの列追加 | 新規テーブルは作らない（research.md参照） |
 | Frontend | Next.js 16 + React 19、`react-toastify`（既存） | 腐敗色表示・中度通知（トースト再スケジュール）・重度通知（新規カスタムバナー） | 重度通知のみ新規UIコンポーネントが必要 |
 
 ## File Structure Plan
@@ -90,7 +90,7 @@ todo-api/src/
 │   ├── help.service.ts             # ヘルプ発火/解決、group_leaderへの通知先解決
 │   └── estimate-approval.service.ts # 見積もりギャップ判定、group_leader承認
 ├── repositories/
-│   └── todos.repository.ts         # 既存を拡張: 新規カラムの読み書き(Prisma Client)
+│   └── todos.repository.ts         # 既存を拡張: 新規カラムの読み書き(orm-migration完了後の永続化層を利用。Prisma導入自体は本specの作業に含まない)
 ├── controllers/
 │   └── todos.controller.ts         # 既存を拡張: 新規フィールドの入出力、ヘルプ/承認エンドポイント
 ├── routes/
