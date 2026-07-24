@@ -39,7 +39,7 @@
   - _Boundary: TodoRepository_
   - _Depends: 1.4_
 
-- [ ] 2.2 Todo更新系メソッドのPrisma化
+- [x] 2.2 Todo更新系メソッドのPrisma化
   - `TodoRepository.create(title, userId, status)`を`prisma.todo.create(...)`相当に置き換える
   - `TodoRepository.update(id, userId, data)`を、指定された`title`/`status`のみを更新する`prisma.todo.updateMany({ where: { id, userId }, data: {...} })`相当に置き換え、指定フィールドが0件の場合はDB呼び出しを行わない早期returnを維持する
   - `TodoRepository.delete(id, userId)`を`prisma.todo.deleteMany({ where: { id, userId } })`相当に置き換える
@@ -128,3 +128,5 @@
 - (1.2) `created_at`/`updated_at`は実DB・init.sqlともにNOT NULL制約なし（nullable）。`DateTime?`が正しい。design.mdのサマリー表の省略表記と紛らわしいが矛盾ではない。
 - (1.2) task 1.3向けの注意（レビューで発見）: `prisma migrate diff --from-empty --to-schema`の生出力は実スキーマと3点ズレる。(a) collation: Prisma出力は`utf8mb4_unicode_ci`だが実DBは`utf8mb4_0900_ai_ci`、(b) 制約名: Prisma出力は`users_email_key`/`todos_user_id_fkey`だが実DBは`email`/`todos_ibfk_1`、(c) `updated_at`のON UPDATE CURRENT_TIMESTAMPが生出力に反映されずFKに不要な`ON UPDATE CASCADE`が付く。task 1.3は生成物をそのまま使わず、`mysql/init.sql`と一致するよう`migration.sql`を手動編集すること（task 1.3の記述通り）。
 - (1.3) 上記3点に加え、4点目を発見: `ADD FOREIGN KEY`で制約名を明示すると、MySQLは支援インデックス名も同じ名前にしてしまう（実DBは無名FKで自動生成された`todos_ibfk_1`/`user_id`という別名になる）。制約名を明示せずMySQLに自動命名させることで再現した。空DBへの`prisma migrate deploy`と`mysql/init.sql`適用結果の`SHOW CREATE TABLE`が完全一致することを別ポートの使い捨てコンテナで2回（実装者・レビュアー独立に）確認済み。
+- (2.1-2.2) `auth.repository.concurrency.test.ts`は本specと無関係な既存の実DB並行性テストで、フルスイート実行時に稀にタイムアウトでフレークする（単独実行・再実行では常にpass）。tasks 1.4/2.1/2.2で複数回観測済み。以降のタスクでこれが単発で落ちても、このテスト自体に変更がなければ本specの回帰ではない。
+- (2.2) 「書き込みが発行されないこと」の証明にはreal DBでは絶対の否定を示せないため、`vi.spyOn`（call-through、`mockRestore`で即座に復元）を1アサーションだけに限定して使用。他の全テストは既存通り実DBに対して実行しており、mock化の拡大ではない。

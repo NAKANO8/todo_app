@@ -1,5 +1,4 @@
 // repositories/todos.repository.ts
-import { pool } from "../db/client";
 import { prisma } from "../db/prismaClient";
 import { Todo } from "../types/todo";
 import type { TodoModel } from "../generated/prisma/models/Todo";
@@ -30,49 +29,41 @@ export const TodoRepository = {
     return row ? toTodo(row) : null;
   },
 
-  async create(title: string, userId: number, status: number = 0) {
-    await pool.query(
-      `INSERT INTO todos (title, user_id, status, created_at, updated_at)
-       VALUES (?, ?, ?, NOW(), NOW())`,
-      [title, userId, status]
-    );
+  async create(title: string, userId: number, status: number = 0): Promise<void> {
+    await prisma.todo.create({
+      data: {
+        title,
+        userId,
+        status: status === 1,
+      },
+    });
   },
 
   async update(
     id: number,
     userId: number,
     data: Partial<Pick<Todo, "title" | "status">>
-  ) {
-    const fields: string[] = [];
-    const values: unknown[] = [];
+  ): Promise<void> {
+    const prismaData: { title?: string; status?: boolean } = {};
 
     if (data.title !== undefined) {
-      fields.push("title = ?");
-      values.push(data.title);
+      prismaData.title = data.title;
     }
 
     if (data.status !== undefined) {
-      fields.push("status = ?");
-      values.push(data.status);
+      prismaData.status = data.status === 1;
     }
 
-    if (fields.length === 0) return;
+    if (Object.keys(prismaData).length === 0) return;
 
-    values.push(id, userId);
-
-    const sql = `
-      UPDATE todos SET ${fields.join(", ")}, updated_at = NOW()
-      WHERE id = ? AND user_id = ?
-    `;
-
-    await pool.query(sql, values);
+    await prisma.todo.updateMany({
+      where: { id, userId },
+      data: prismaData,
+    });
   },
 
-  async delete(id: number, userId: number) {
-    await pool.query(
-      "DELETE FROM todos WHERE id = ? AND user_id = ?",
-      [id, userId]
-    );
+  async delete(id: number, userId: number): Promise<void> {
+    await prisma.todo.deleteMany({ where: { id, userId } });
   },
 };
 
