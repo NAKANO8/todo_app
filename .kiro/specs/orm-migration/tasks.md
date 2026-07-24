@@ -22,7 +22,7 @@
   - 観測可能な完了状態: 空のMySQLコンテナに対し`prisma migrate deploy`を実行した結果、`SHOW CREATE TABLE users`/`SHOW CREATE TABLE todos`の出力が既存スキーマと一致する
   - _Requirements: 1.4, 4.1_
 
-- [ ] 1.4 PrismaClientシングルトンの実装
+- [x] 1.4 PrismaClientシングルトンの実装
   - `todo-api/src/db/prismaClient.ts`を新規作成し、モジュール読み込み時に`PrismaClient`を1度だけインスタンス化してexportする（`db/client.ts`の`pool`と同じ初期化パターン）
   - `dotenv`による`.env`読み込みを既存の`db/client.ts`と同じ規約で行う
   - 観測可能な完了状態: `prismaClient.ts`をimportした最小スクリプトが`prisma.$connect()`に成功する
