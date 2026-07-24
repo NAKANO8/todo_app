@@ -1,5 +1,7 @@
 import { ResultSetHeader, RowDataPacket } from 'mysql2/promise';
 import { pool } from '../db/client';
+import { prisma } from '../db/prismaClient';
+import type { UserModel } from '../generated/prisma/models/User';
 
 type CreateUserInput = {
   email: string;
@@ -27,46 +29,71 @@ export type UserSummary = RowDataPacket & {
   name: string;
 };
 
-type PasswordHashRow = RowDataPacket & {
-  password_hash: string;
-};
+// Prisma's `User` model uses camelCase scalar names (passwordHash) while the
+// public `User`/`UserSummary` types keep the pre-existing mysql2-era
+// snake_case shape (password_hash), so callers (AuthService, ProfileService,
+// AdminUserService) don't need to change. This mapper bridges the two,
+// mirroring the toTodo() pattern in todos.repository.ts.
+function toUser(row: UserModel): User {
+  return {
+    id: row.id,
+    email: row.email,
+    password_hash: row.passwordHash,
+    role: row.role,
+    status: row.status,
+    name: row.name,
+  } as User;
+}
+
+// Used by findAll/findById, which both intentionally never select
+// password_hash (API-reachable reads) — see method comments below.
+function toUserSummary(
+  row: Pick<UserModel, 'id' | 'email' | 'role' | 'status' | 'name'>
+): UserSummary {
+  return {
+    id: row.id,
+    email: row.email,
+    role: row.role,
+    status: row.status,
+    name: row.name,
+  } as UserSummary;
+}
 
 export const AuthRepository = {
-  // SELECT * is intentional here: this is the only lookup that legitimately
-  // needs password_hash (for bcrypt.compare during login), so it isn't
-  // subject to the "never SELECT * for API-facing reads" rule below. `name`
-  // is automatically included as a column on the table.
+  // No column restriction is intentional here: this is the only lookup that
+  // legitimately needs password_hash (for bcrypt.compare during login), so
+  // it isn't subject to the "never fetch password_hash for API-facing reads"
+  // rule below. `name` is automatically included as a column on the table.
   async findByEmail(email: string) {
-    const [rows] = await pool.query<User[]>(
-      'SELECT * FROM users WHERE email = ?',
-      [email]
-    );
-    return rows[0] ?? null;
+    const row = await prisma.user.findUnique({ where: { email } });
+    return row ? toUser(row) : null;
   },
 
-  // Explicit column list (no password_hash) because this result can reach an
-  // API response (e.g. /auth/me) — keep this in sync with UserSummary's shape.
+  // Explicit column selection (no password_hash) because this result can
+  // reach an API response (e.g. /auth/me) — keep this in sync with
+  // UserSummary's shape. The returned object is UserSummary-shaped (no
+  // password_hash present at runtime) even though its static type is `User`,
+  // mirroring the pre-existing mysql2 behavior of this method.
   async findById(id: number) {
-    const [rows] = await pool.query<User[]>(
-      'SELECT id, email, role, status, name FROM users WHERE id = ?',
-      [id]
-    );
-    return rows[0] ?? null;
+    const row = await prisma.user.findUnique({
+      where: { id },
+      select: { id: true, email: true, role: true, status: true, name: true },
+    });
+    return row ? (toUserSummary(row) as unknown as User) : null;
   },
 
-  // Explicit column list (no password_hash) — see findById.
+  // Explicit column selection (no password_hash) — see findById.
   async findAll() {
-    const [rows] = await pool.query<UserSummary[]>(
-      'SELECT id, email, role, status, name FROM users'
-    );
-    return rows;
+    const rows = await prisma.user.findMany({
+      select: { id: true, email: true, role: true, status: true, name: true },
+    });
+    return rows.map(toUserSummary);
   },
 
   async createUser({ email, password_hash, name }: CreateUserInput) {
-    await pool.query(
-      `INSERT INTO users (email, password_hash, name) VALUES (?, ?, ?)`,
-      [email, password_hash, name]
-    );
+    await prisma.user.create({
+      data: { email, passwordHash: password_hash, name },
+    });
   },
 
   // 対象(userId)のロールを newRole に更新する。
@@ -143,41 +170,45 @@ export const AuthRepository = {
   // Profile screen (profile-screen spec, ProfileService): 対象(userId)の表示名を
   // name に更新する。updateRole/updateStatus と異なり「最後の管理者」のような
   // 不変条件は存在しないため、単純な対象行(id)限定のUPDATEのみでよい。
-  // updated_at = NOW() を明示的にSETに含める理由はupdateRole/updateStatusと同じ:
-  // 値が変化しない冪等な再送でもaffectedRows >= 1を得るため。
+  // updated_at を明示的にSETに含めなくても、schema.prismaのUser.updatedAtに
+  // 付与された @updatedAt により、値が変化しない冪等な再送でも
+  // Prismaが毎回新しいタイムスタンプをSETするため affectedRows(count) >= 1 が
+  // 得られる（既存のmysql2実装が `updated_at = NOW()` を明示していたのと同じ
+  // 効果）。userId不一致の場合は0件更新のため count は 0 になる
+  // (Prisma.update()と異なりupdateMany()は対象なしでも例外を投げない)。
   async updateName(userId: number, name: string): Promise<number> {
-    const [result] = await pool.query<ResultSetHeader>(
-      `UPDATE users SET name = ?, updated_at = NOW() WHERE id = ?`,
-      [name, userId]
-    );
-    return result.affectedRows;
+    const result = await prisma.user.updateMany({
+      where: { id: userId },
+      data: { name },
+    });
+    return result.count;
   },
 
   // Profile screen (profile-screen spec, ProfileService.changePassword): 現在
   // パスワードの照合(bcrypt.compare)にのみ使う、単一カラムの読み取り。
-  // findByEmail の SELECT * とは異なり、パスワード変更フローは既にuserIdが
-  // 判明している(セッションから取得済み)ため、他の列を一切取得する必要がない。
+  // findByEmail とは異なり、パスワード変更フローは既にuserIdが判明している
+  // (セッションから取得済み)ため、他の列を一切取得する必要がない。
   // API応答に到達し得ないコンテキストでも、必要な列だけを取得する方針を守る。
   async findPasswordHashById(userId: number): Promise<string | null> {
-    const [rows] = await pool.query<PasswordHashRow[]>(
-      'SELECT password_hash FROM users WHERE id = ?',
-      [userId]
-    );
-    return rows[0]?.password_hash ?? null;
+    const row = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { passwordHash: true },
+    });
+    return row?.passwordHash ?? null;
   },
 
   // Profile screen (profile-screen spec, ProfileService.changePassword): 対象
-  // (userId)のパスワードハッシュを更新する。updateName と同じ理由で
-  // updated_at = NOW() を明示的にSETへ含める。
+  // (userId)のパスワードハッシュを更新する。updateName と同じ理由で、
+  // schema.prismaの@updatedAtにより冪等な再送でも count >= 1 が得られる。
   async updatePasswordHash(
     userId: number,
     passwordHash: string
   ): Promise<number> {
-    const [result] = await pool.query<ResultSetHeader>(
-      `UPDATE users SET password_hash = ?, updated_at = NOW() WHERE id = ?`,
-      [passwordHash, userId]
-    );
-    return result.affectedRows;
+    const result = await prisma.user.updateMany({
+      where: { id: userId },
+      data: { passwordHash },
+    });
+    return result.count;
   },
 }
 

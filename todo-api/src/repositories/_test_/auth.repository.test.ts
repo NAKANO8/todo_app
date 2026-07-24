@@ -1,5 +1,6 @@
 import { describe, it, expect, afterAll } from "vitest";
 import { pool } from "../../db/client";
+import { prisma } from "../../db/prismaClient";
 import { AuthRepository } from "../auth.repository";
 
 const TEST_EMAIL = "auth_repo_test@example.com";
@@ -47,6 +48,7 @@ afterAll(async () => {
     await (pool as any).query("DELETE FROM users WHERE email = ?", [email]);
   }
   await pool.end();
+  await prisma.$disconnect();
 });
 
 // updateRole/updateStatus の不変条件チェックは「対象(id)を除いて、他に有効な
@@ -103,6 +105,25 @@ async function withOnlyActiveAdminBeing(
     await conn.rollback();
     conn.release();
   }
+}
+
+// task 3.1 (orm-migration): findById now reads via Prisma's own connection
+// (adapter), which — unlike the old mysql2 pool.query-based findById — no
+// longer participates in withOnlyActiveAdminBeing's monkey-patched, never-
+// committed transaction on `conn`. For the two assertions below that need to
+// observe an update() made by AuthRepository.updateRole/updateStatus (still
+// mysql2-based, task 3.2's job) to the *same* uncommitted transaction, read
+// back through the still-monkey-patched pool.query directly instead of
+// AuthRepository.findById, so the read observes its own transaction's
+// uncommitted write exactly as before.
+async function readRoleAndStatusViaPool(
+  id: number
+): Promise<{ role: string; status: string } | null> {
+  const [rows]: any = await (pool as any).query(
+    "SELECT role, status FROM users WHERE id = ?",
+    [id]
+  );
+  return rows[0] ?? null;
 }
 
 async function createFixtureUser(
@@ -276,7 +297,7 @@ describe("AuthRepository", () => {
         const affectedRows = await AuthRepository.updateRole(memberId, "admin");
         expect(affectedRows).toBe(1);
 
-        const found = await AuthRepository.findById(memberId);
+        const found = await readRoleAndStatusViaPool(memberId);
         expect(found!.role).toBe("admin");
       });
     });
@@ -389,7 +410,7 @@ describe("AuthRepository", () => {
         const affectedRows = await AuthRepository.updateStatus(soleAdminId, "active");
         expect(affectedRows).toBe(1);
 
-        const found = await AuthRepository.findById(soleAdminId);
+        const found = await readRoleAndStatusViaPool(soleAdminId);
         expect(found!.status).toBe("active");
 
         // 冪等な再送: 既にactiveへの再有効化が完了済みの状態へ同じ値(active)を

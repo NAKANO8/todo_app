@@ -58,7 +58,7 @@
 
 - [ ] 3. (P) 認証・ユーザー管理データアクセス移行
   - `auth.repository.ts`のみを対象とするドメインであり、2.（`todos.repository.ts`）とはファイル・境界が重複しないため並行実施可能。ただし3.1〜3.3は同一ファイルを編集するため内部は順次実施する
-- [ ] 3.1 Auth標準CRUDメソッドのPrisma化
+- [x] 3.1 Auth標準CRUDメソッドのPrisma化
   - `findByEmail`（password_hashを含む全カラム取得）、`findById`（password_hash除外）、`findAll`（password_hash除外の一覧）を`prisma.user.findUnique`/`findMany`相当に置き換える
   - `createUser`を`prisma.user.create(...)`相当に置き換える
   - `updateName`（表示名更新）、`findPasswordHashById`（password_hashのみ取得）、`updatePasswordHash`（password_hash更新）を`prisma.user.update`/`findUnique`相当に置き換える
@@ -131,3 +131,4 @@
 - (2.1-2.2) `auth.repository.concurrency.test.ts`は本specと無関係な既存の実DB並行性テストで、フルスイート実行時に稀にタイムアウトでフレークする（単独実行・再実行では常にpass）。tasks 1.4/2.1/2.2で複数回観測済み。以降のタスクでこれが単発で落ちても、このテスト自体に変更がなければ本specの回帰ではない。
 - (2.2) 「書き込みが発行されないこと」の証明にはreal DBでは絶対の否定を示せないため、`vi.spyOn`（call-through、`mockRestore`で即座に復元）を1アサーションだけに限定して使用。他の全テストは既存通り実DBに対して実行しており、mock化の拡大ではない。
 - (2.3) フルスイート実行時のみ、本specと無関係なファイル（`auth.repository.concurrency`/`usersSchema`等、実行のたびに異なる組み合わせ）で「Deadlock found」「Test timed out」が散発する。これは実MySQLコンテナへの並列接続数がこのサンドボックス環境のリソースに対して多すぎることが原因と考えられ、Prisma移行前から存在した既存の問題（`auth.repository.concurrency`は task 1.4時点で既にフレーク観測済み）。各リポジトリテストを単体実行すると常に100%成功する。以降のタスクでも、フルスイートで無関係なファイルが落ちた場合は単体実行での再現有無を確認すること。vitest.config.tsの並列度設定見直しはorm-migration specのスコープ外。
+- (3.1) `findById`（Prisma、独立コネクション）は、`updateRole`/`updateStatus`（mysql2、task 3.2でまだ未移行）がテスト内でモンキーパッチしたコミット前トランザクションの書き込みを見えなくする。「許可される（値が変わる）」系の2アサーションのみ、`pool`経由で直接読む`readRoleAndStatusViaPool`ヘルパーに切り替えて対処。「拒否される（値が変わらない）」系はコミット済み状態を見るだけなので`findById`のままで問題ない。task 3.2でupdateRole/updateStatusも移行した後、3.3でこのワークアラウンドの要否を再確認すること。
