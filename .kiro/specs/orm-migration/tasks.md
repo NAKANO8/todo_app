@@ -16,7 +16,7 @@
   - 観測可能な完了状態: `npx prisma generate`が成功し、`User`/`Todo`/`UserRole`/`AccountStatus`の型が生成される
   - _Requirements: 1.1, 1.2, 1.3_
 
-- [ ] 1.3 ベースラインマイグレーションの作成
+- [x] 1.3 ベースラインマイグレーションの作成
   - `prisma/migrations/0_init/migration.sql`を作成し、DDLが`mysql/init.sql`と同一の構造（カラム・制約・デフォルト値・外部キー）になっていることを確認する
   - 新規の空DBに対して`prisma migrate deploy`を実行し、`mysql/init.sql`適用後と同一のテーブル構造が得られることを確認する
   - 観測可能な完了状態: 空のMySQLコンテナに対し`prisma migrate deploy`を実行した結果、`SHOW CREATE TABLE users`/`SHOW CREATE TABLE todos`の出力が既存スキーマと一致する
@@ -127,3 +127,4 @@
 - (1.1) Prisma 7.9の実際のスキャフォールドでは、`schema.prisma`の`datasource`ブロックに`url`を書かず、`prisma.config.ts`（`@prisma/config`の`datasource.url`）側でDATABASE_URLを解決する。task 1.2でschema.prismaにモデルを追加する際も、この構成（datasourceブロックにurlなし）をそのまま踏襲すること。
 - (1.2) `created_at`/`updated_at`は実DB・init.sqlともにNOT NULL制約なし（nullable）。`DateTime?`が正しい。design.mdのサマリー表の省略表記と紛らわしいが矛盾ではない。
 - (1.2) task 1.3向けの注意（レビューで発見）: `prisma migrate diff --from-empty --to-schema`の生出力は実スキーマと3点ズレる。(a) collation: Prisma出力は`utf8mb4_unicode_ci`だが実DBは`utf8mb4_0900_ai_ci`、(b) 制約名: Prisma出力は`users_email_key`/`todos_user_id_fkey`だが実DBは`email`/`todos_ibfk_1`、(c) `updated_at`のON UPDATE CURRENT_TIMESTAMPが生出力に反映されずFKに不要な`ON UPDATE CASCADE`が付く。task 1.3は生成物をそのまま使わず、`mysql/init.sql`と一致するよう`migration.sql`を手動編集すること（task 1.3の記述通り）。
+- (1.3) 上記3点に加え、4点目を発見: `ADD FOREIGN KEY`で制約名を明示すると、MySQLは支援インデックス名も同じ名前にしてしまう（実DBは無名FKで自動生成された`todos_ibfk_1`/`user_id`という別名になる）。制約名を明示せずMySQLに自動命名させることで再現した。空DBへの`prisma migrate deploy`と`mysql/init.sql`適用結果の`SHOW CREATE TABLE`が完全一致することを別ポートの使い捨てコンテナで2回（実装者・レビュアー独立に）確認済み。
