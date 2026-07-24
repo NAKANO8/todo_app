@@ -8,7 +8,7 @@
   - 観測可能な完了状態: `npx prisma validate`がエラーなく完了する
   - _Requirements: 1.1_
 
-- [ ] 1.2 schema.prismaへのモデル・enum定義
+- [x] 1.2 schema.prismaへのモデル・enum定義
   - `prisma/schema.prisma`に`datasource`（provider: mysql, url: env("DATABASE_URL")）と`generator client`を定義する
   - `User`モデルを定義する（id, email, password_hash, role, status, created_at, updated_at, name。既存の型・NULL制約・デフォルト値・UNIQUE制約を保持し、`@@map("users")`で物理テーブル名を維持する）
   - `Todo`モデルを定義する（id, user_id, title, status, created_at, updated_at、`User`への`@relation(onDelete: Cascade)`、`@@map("todos")`）
@@ -125,3 +125,5 @@
 ## Implementation Notes
 - (1.1) Prisma 7.xはMySQL/MariaDBに対して`PrismaClient`インスタンス化時にドライバアダプタを必須とする（`new PrismaClient()`のみでは`"PrismaClient requires a driver adapter"`で例外）。アダプタは`@prisma/adapter-mariadb` + `mariadb`パッケージ。task 1.4（PrismaClientシングルトン実装）はこれをインストールし、アダプタ経由でインスタンス化すること。
 - (1.1) Prisma 7.9の実際のスキャフォールドでは、`schema.prisma`の`datasource`ブロックに`url`を書かず、`prisma.config.ts`（`@prisma/config`の`datasource.url`）側でDATABASE_URLを解決する。task 1.2でschema.prismaにモデルを追加する際も、この構成（datasourceブロックにurlなし）をそのまま踏襲すること。
+- (1.2) `created_at`/`updated_at`は実DB・init.sqlともにNOT NULL制約なし（nullable）。`DateTime?`が正しい。design.mdのサマリー表の省略表記と紛らわしいが矛盾ではない。
+- (1.2) task 1.3向けの注意（レビューで発見）: `prisma migrate diff --from-empty --to-schema`の生出力は実スキーマと3点ズレる。(a) collation: Prisma出力は`utf8mb4_unicode_ci`だが実DBは`utf8mb4_0900_ai_ci`、(b) 制約名: Prisma出力は`users_email_key`/`todos_user_id_fkey`だが実DBは`email`/`todos_ibfk_1`、(c) `updated_at`のON UPDATE CURRENT_TIMESTAMPが生出力に反映されずFKに不要な`ON UPDATE CASCADE`が付く。task 1.3は生成物をそのまま使わず、`mysql/init.sql`と一致するよう`migration.sql`を手動編集すること（task 1.3の記述通り）。
