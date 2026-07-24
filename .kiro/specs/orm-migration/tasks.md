@@ -30,7 +30,7 @@
 
 - [ ] 2. (P) Todoデータアクセス移行
   - `todos.repository.ts`のみを対象とするドメインであり、3.（`auth.repository.ts`）とはファイル・境界が重複しないため並行実施可能。ただし2.1〜2.3は同一ファイルを編集するため内部は順次実施する
-- [ ] 2.1 Todo参照系メソッドのPrisma化
+- [x] 2.1 Todo参照系メソッドのPrisma化
   - `TodoRepository.findAll(userId)`を`prisma.todo.findMany({ where: { userId } })`相当に置き換える
   - `TodoRepository.findById(id, userId)`を`prisma.todo.findFirst({ where: { id, userId } })`相当に置き換え、非該当時は`null`を返す
   - 公開メソッドシグネチャ・戻り値の型（`Todo[]`/`Todo | null`）を変更しない

@@ -40,6 +40,26 @@ describe("TodoRepository", () => {
     expect(todo?.title).toBe("find me");
   });
 
+  it("findById returns null for another user's todo (user_id scope enforced)", async () => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const [otherUserResult]: [any, any] = await (pool as any).query(
+      "INSERT INTO users (email, password_hash, name) VALUES (?, ?, ?)",
+      ["repo_test_other@example.com", "hashedpassword", "repo_test_other"]
+    );
+    const otherUserId = otherUserResult.insertId;
+
+    try {
+      await TodoRepository.create("mine only", testUserId);
+      const [todo] = await TodoRepository.findAll(testUserId);
+
+      const result = await TodoRepository.findById(todo.id, otherUserId);
+
+      expect(result).toBeNull();
+    } finally {
+      await (pool as any).query("DELETE FROM users WHERE id = ?", [otherUserId]);
+    }
+  });
+
   it("update", async () => {
     await TodoRepository.create("old", testUserId);
     const [todo] = await TodoRepository.findAll(testUserId);
