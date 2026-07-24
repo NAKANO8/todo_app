@@ -1,26 +1,27 @@
 import { describe, it, expect, afterAll, beforeAll, beforeEach, vi } from "vitest";
-import { pool } from "../../db/client";
 import { prisma } from "../../db/prismaClient";
 import { TodoRepository } from "../todos.repository";
 
 let testUserId: number;
 
 beforeAll(async () => {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const [result]: [any, any] = await (pool as any).query(
-    "INSERT INTO users (email, password_hash, name) VALUES (?, ?, ?)",
-    ["repo_test@example.com", "hashedpassword", "repo_test"]
-  );
-  testUserId = result.insertId;
+  const user = await prisma.user.create({
+    data: {
+      email: "repo_test@example.com",
+      passwordHash: "hashedpassword",
+      name: "repo_test",
+    },
+  });
+  testUserId = user.id;
 });
 
 beforeEach(async () => {
-  await (pool as any).query("DELETE FROM todos WHERE user_id = ?", [testUserId]);
+  await prisma.todo.deleteMany({ where: { userId: testUserId } });
 });
 
 afterAll(async () => {
-  await (pool as any).query("DELETE FROM users WHERE id = ?", [testUserId]);
-  await pool.end();
+  await prisma.user.delete({ where: { id: testUserId } });
+  await prisma.$disconnect();
 });
 
 describe("TodoRepository", () => {
@@ -42,12 +43,14 @@ describe("TodoRepository", () => {
   });
 
   it("findById returns null for another user's todo (user_id scope enforced)", async () => {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const [otherUserResult]: [any, any] = await (pool as any).query(
-      "INSERT INTO users (email, password_hash, name) VALUES (?, ?, ?)",
-      ["repo_test_other@example.com", "hashedpassword", "repo_test_other"]
-    );
-    const otherUserId = otherUserResult.insertId;
+    const otherUser = await prisma.user.create({
+      data: {
+        email: "repo_test_other@example.com",
+        passwordHash: "hashedpassword",
+        name: "repo_test_other",
+      },
+    });
+    const otherUserId = otherUser.id;
 
     try {
       await TodoRepository.create("mine only", testUserId);
@@ -57,7 +60,7 @@ describe("TodoRepository", () => {
 
       expect(result).toBeNull();
     } finally {
-      await (pool as any).query("DELETE FROM users WHERE id = ?", [otherUserId]);
+      await prisma.user.delete({ where: { id: otherUserId } });
     }
   });
 
@@ -85,12 +88,14 @@ describe("TodoRepository", () => {
   });
 
   it("update does not affect another user's todo (user_id scope enforced)", async () => {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const [otherUserResult]: [any, any] = await (pool as any).query(
-      "INSERT INTO users (email, password_hash, name) VALUES (?, ?, ?)",
-      ["repo_test_other_update@example.com", "hashedpassword", "repo_test_other_update"]
-    );
-    const otherUserId = otherUserResult.insertId;
+    const otherUser = await prisma.user.create({
+      data: {
+        email: "repo_test_other_update@example.com",
+        passwordHash: "hashedpassword",
+        name: "repo_test_other_update",
+      },
+    });
+    const otherUserId = otherUser.id;
 
     try {
       await TodoRepository.create("owner's todo", testUserId);
@@ -101,17 +106,19 @@ describe("TodoRepository", () => {
 
       expect(unchanged?.title).toBe("owner's todo");
     } finally {
-      await (pool as any).query("DELETE FROM users WHERE id = ?", [otherUserId]);
+      await prisma.user.delete({ where: { id: otherUserId } });
     }
   });
 
   it("delete does not affect another user's todo (user_id scope enforced)", async () => {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const [otherUserResult]: [any, any] = await (pool as any).query(
-      "INSERT INTO users (email, password_hash, name) VALUES (?, ?, ?)",
-      ["repo_test_other_delete@example.com", "hashedpassword", "repo_test_other_delete"]
-    );
-    const otherUserId = otherUserResult.insertId;
+    const otherUser = await prisma.user.create({
+      data: {
+        email: "repo_test_other_delete@example.com",
+        passwordHash: "hashedpassword",
+        name: "repo_test_other_delete",
+      },
+    });
+    const otherUserId = otherUser.id;
 
     try {
       await TodoRepository.create("keep me", testUserId);
@@ -122,7 +129,7 @@ describe("TodoRepository", () => {
 
       expect(stillThere).not.toBeNull();
     } finally {
-      await (pool as any).query("DELETE FROM users WHERE id = ?", [otherUserId]);
+      await prisma.user.delete({ where: { id: otherUserId } });
     }
   });
 

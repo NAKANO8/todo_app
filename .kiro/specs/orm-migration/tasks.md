@@ -48,7 +48,7 @@
   - _Requirements: 2.3, 2.4, 2.5, 2.6, 2.7_
   - _Boundary: TodoRepository_
 
-- [ ] 2.3 Todoリポジトリテストの検証
+- [x] 2.3 Todoリポジトリテストの検証
   - `todo-api/src/repositories/_test_/todos.repository.test.ts`のfixture準備・後始末（`pool.query`呼び出し）をPrisma Client呼び出しに最小限差し替える
   - create→findAll、findById、update、deleteの既存アサーションが移行前と同じ結果になることを確認する
   - 観測可能な完了状態: `pnpm --filter todo-api test todos.repository`が全て合格する
@@ -130,3 +130,4 @@
 - (1.3) 上記3点に加え、4点目を発見: `ADD FOREIGN KEY`で制約名を明示すると、MySQLは支援インデックス名も同じ名前にしてしまう（実DBは無名FKで自動生成された`todos_ibfk_1`/`user_id`という別名になる）。制約名を明示せずMySQLに自動命名させることで再現した。空DBへの`prisma migrate deploy`と`mysql/init.sql`適用結果の`SHOW CREATE TABLE`が完全一致することを別ポートの使い捨てコンテナで2回（実装者・レビュアー独立に）確認済み。
 - (2.1-2.2) `auth.repository.concurrency.test.ts`は本specと無関係な既存の実DB並行性テストで、フルスイート実行時に稀にタイムアウトでフレークする（単独実行・再実行では常にpass）。tasks 1.4/2.1/2.2で複数回観測済み。以降のタスクでこれが単発で落ちても、このテスト自体に変更がなければ本specの回帰ではない。
 - (2.2) 「書き込みが発行されないこと」の証明にはreal DBでは絶対の否定を示せないため、`vi.spyOn`（call-through、`mockRestore`で即座に復元）を1アサーションだけに限定して使用。他の全テストは既存通り実DBに対して実行しており、mock化の拡大ではない。
+- (2.3) フルスイート実行時のみ、本specと無関係なファイル（`auth.repository.concurrency`/`usersSchema`等、実行のたびに異なる組み合わせ）で「Deadlock found」「Test timed out」が散発する。これは実MySQLコンテナへの並列接続数がこのサンドボックス環境のリソースに対して多すぎることが原因と考えられ、Prisma移行前から存在した既存の問題（`auth.repository.concurrency`は task 1.4時点で既にフレーク観測済み）。各リポジトリテストを単体実行すると常に100%成功する。以降のタスクでも、フルスイートで無関係なファイルが落ちた場合は単体実行での再現有無を確認すること。vitest.config.tsの並列度設定見直しはorm-migration specのスコープ外。
