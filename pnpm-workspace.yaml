@@ -2,7 +2,9 @@ packages:
   - "todo-web"
   - "todo-api"
 allowBuilds:
+  '@prisma/engines': true
   bcrypt: false
   esbuild: false
+  prisma: true
   sharp: false
   unrs-resolver: false

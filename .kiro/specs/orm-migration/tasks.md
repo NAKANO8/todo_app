@@ -1,7 +1,7 @@
 # Implementation Plan
 
 - [ ] 1. Foundation: Prisma基盤整備
-- [ ] 1.1 Prisma導入と接続設定の確立
+- [x] 1.1 Prisma導入と接続設定の確立
   - `todo-api/package.json`に`prisma`(devDependencies)と`@prisma/client`(dependencies)を`^7.8.0`で追加する
   - `prisma init`のスキャフォールド出力を確認し、Prisma 7.8.0でのMySQL接続方式（ドライバアダプタの要否・パッケージ名）を確定する
   - `DATABASE_URL`環境変数を`.env.dev`・本番環境変数・CI環境変数に追加する（既存の`DB_HOST`/`DB_USER`/`DB_PASSWORD`/`DB_NAME`/`DB_PORT`から組み立てた接続文字列）
@@ -121,3 +121,7 @@
   - 観測可能な完了状態: `todo-api/src/db/client.ts`を参照するimportがコードベースに存在せず、`pnpm --filter todo-api build`が成功する
   - _Requirements: 1.4, 4.1_
   - _Depends: 5.1_
+
+## Implementation Notes
+- (1.1) Prisma 7.xはMySQL/MariaDBに対して`PrismaClient`インスタンス化時にドライバアダプタを必須とする（`new PrismaClient()`のみでは`"PrismaClient requires a driver adapter"`で例外）。アダプタは`@prisma/adapter-mariadb` + `mariadb`パッケージ。task 1.4（PrismaClientシングルトン実装）はこれをインストールし、アダプタ経由でインスタンス化すること。
+- (1.1) Prisma 7.9の実際のスキャフォールドでは、`schema.prisma`の`datasource`ブロックに`url`を書かず、`prisma.config.ts`（`@prisma/config`の`datasource.url`）側でDATABASE_URLを解決する。task 1.2でschema.prismaにモデルを追加する際も、この構成（datasourceブロックにurlなし）をそのまま踏襲すること。

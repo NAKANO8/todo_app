@@ -15,7 +15,8 @@
   "exclude": [
     "**/*.test.ts",
     "**/_test_/**",
-    "vitest.config.ts"
+    "vitest.config.ts",
+    "prisma.config.ts"
   ],
 }
 
