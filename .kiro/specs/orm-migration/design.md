@@ -282,6 +282,7 @@ interface TodoRepositoryContract {
 **Responsibilities & Constraints**
 - `findByEmail`/`findById`/`findAll`/`createUser`/`updateName`/`findPasswordHashById`/`updatePasswordHash`: 標準的なPrisma Clientのモデル操作（`findUnique`/`findMany`/`create`/`update`）で置き換え可能。列選択は既存同様`select`で絞り込む（`findByEmail`のみ`password_hash`を含む全カラム、それ以外はAPI到達可能なため`password_hash`を除外）
 - `updateRole`/`updateStatus`: 「対象ユーザー以外に有効な管理者が1人以上いる場合のみ許可」という不変条件を、既存と同一のSQL文（派生テーブルでラップしたEXISTSサブクエリ）を`prisma.$executeRaw`（タグ付きテンプレート、パラメータバインド）でそのまま実行して維持する。`updated_at = NOW()`を明示的にSETに含める既存の冪等性保証もそのまま踏襲する
+- **設計変更（実装中に発見・承認済み）**: `updateRole`/`updateStatus`に、末尾オプション引数として`tx?: Prisma.TransactionClient`を追加する。省略時（既存の全呼び出し元）は従来通り`prisma`シングルトンを使い、挙動・戻り値は一切変わらない。目的は、最終的な有効な管理者保護の不変条件を検証するテスト（`auth.repository.concurrency.test.ts`等）が、実DBの本物の管理者アカウントを一時的に無効化するのではなく、一度もコミットしないPrismaトランザクション上でこのメソッドを呼び出せるようにするため（プロセスがkillされてもMySQLが自動ロールバックし、他コネクションからも中間状態が見えない）。既存呼び出し元（`AdminUserService`等）は変更不要
 - 戻り値は既存同様、影響を受けた行数（`affectedRows`相当）を返す。`AdminUserService`はこの値のみで404/409を判別するため、この契約を変更しない
 
 **Dependencies**
@@ -297,8 +298,8 @@ interface AuthRepositoryContract {
   findById(id: number): Promise<User | null>;
   findAll(): Promise<UserSummary[]>;
   createUser(input: CreateUserInput): Promise<void>;
-  updateRole(userId: number, newRole: UserRole): Promise<number>;
-  updateStatus(userId: number, newStatus: AccountStatus): Promise<number>;
+  updateRole(userId: number, newRole: UserRole, tx?: Prisma.TransactionClient): Promise<number>;
+  updateStatus(userId: number, newStatus: AccountStatus, tx?: Prisma.TransactionClient): Promise<number>;
   updateName(userId: number, name: string): Promise<number>;
   findPasswordHashById(userId: number): Promise<string | null>;
   updatePasswordHash(userId: number, passwordHash: string): Promise<number>;

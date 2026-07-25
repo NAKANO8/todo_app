@@ -68,8 +68,7 @@
   - _Boundary: AuthRepository_
   - _Depends: 1.4_
 
-- [ ] 3.2 updateRole/updateStatusの不変条件維持移行
-  - _Blocked: SQL移行自体(prisma.$executeRaw化)は2回のレビューで承認済みだが、テストのクラッシュ安全性を巡って2回REJECTED。根本原因はMySQLの仕様上「未コミットの他コネクションの変更は見えない」ため、プロセスkillでも自動ロールバックされる安全な設計にするには、テストコードがAuthRepository.updateRole/updateStatusと同じPrisma接続(トランザクション)上で呼び出す必要がある。しかし現在の公開シグネチャにはトランザッションクライアントを渡す手段がなく、design.mdのBoundary Commitmentsが「公開メソッドシグネチャ・戻り値の形を変更しない」ことを明記し、変更时は3つの下流spec(team-management/task-status-model/task-assignment)の再検証をRevalidation Triggerとして要求している。human判断が必要。_
+- [x] 3.2 updateRole/updateStatusの不変条件維持移行
   - `updateRole`/`updateStatus`を、既存と同一のSQL文（対象行(id)基準の単一UPDATE、派生テーブルでラップしたEXISTSサブクエリによる「対象ユーザー以外に有効な管理者が1人以上いる」判定）のまま`prisma.$executeRaw`（タグ付きテンプレート、パラメータバインド）で実行するよう置き換える
   - `updated_at = NOW()`を明示的にSETに含める既存の冪等性保証（値が変化しない再送でも影響行数1以上を返す）を維持する
   - 戻り値として影響行数（既存の`affectedRows`相当の数値）を返す
@@ -133,3 +132,8 @@
 - (2.2) 「書き込みが発行されないこと」の証明にはreal DBでは絶対の否定を示せないため、`vi.spyOn`（call-through、`mockRestore`で即座に復元）を1アサーションだけに限定して使用。他の全テストは既存通り実DBに対して実行しており、mock化の拡大ではない。
 - (2.3) フルスイート実行時のみ、本specと無関係なファイル（`auth.repository.concurrency`/`usersSchema`等、実行のたびに異なる組み合わせ）で「Deadlock found」「Test timed out」が散発する。これは実MySQLコンテナへの並列接続数がこのサンドボックス環境のリソースに対して多すぎることが原因と考えられ、Prisma移行前から存在した既存の問題（`auth.repository.concurrency`は task 1.4時点で既にフレーク観測済み）。各リポジトリテストを単体実行すると常に100%成功する。以降のタスクでも、フルスイートで無関係なファイルが落ちた場合は単体実行での再現有無を確認すること。vitest.config.tsの並列度設定見直しはorm-migration specのスコープ外。
 - (3.1) `findById`（Prisma、独立コネクション）は、`updateRole`/`updateStatus`（mysql2、task 3.2でまだ未移行）がテスト内でモンキーパッチしたコミット前トランザクションの書き込みを見えなくする。「許可される（値が変わる）」系の2アサーションのみ、`pool`経由で直接読む`readRoleAndStatusViaPool`ヘルパーに切り替えて対処。「拒否される（値が変わらない）」系はコミット済み状態を見るだけなので`findById`のままで問題ない。task 3.2でupdateRole/updateStatusも移行した後、3.3でこのワークアラウンドの要否を再確認すること。
+- (3.2) この移行は最も難航したタスク。SQL自体（`$executeRaw`化）は一度で承認されたが、「唯一の有効な管理者」不変条件を検証するテストの安全性で2回REJECTEDされ、実DBの本物の管理者アカウントが無効化されたまま残留する事故を2回実際に起こして復旧した。根本原因はMySQLの「未コミットの変更は他コネクションから見えない」という仕様。最終的に以下の非対称な解決に至った:
+  - **単一リクエストのテスト**（`auth.repository.test.ts`）: `AuthRepository.updateRole`/`updateStatus`に末尾オプション引数`tx?: Prisma.TransactionClient`を追加（design.md承認済み、省略時は既存呼び出し元と完全互換）。「他の管理者を無効化→検証対象呼び出し→アサーション」全体を一度もコミットしない`prisma.$transaction`に閉じ込め、最後に意図的にロールバックさせる。プロセスがkillされてもMySQLが自動ロールバックするためアプリ側の後始末コード不要。kill -9を複数回実施し実証済み。
+  - **本物の同時実行テスト**（`auth.repository.concurrency.test.ts`）: 未コミットトランザクション方式は使えない（2つの独立したコネクションが競合する様子を再現するには、一方の変更がもう一方から見える=コミット済みである必要があるため、原理的に矛盾する）。実コミットで一時無効化する既存方式を維持しつつ、MySQLネイティブの一回限りEVENT（`event_scheduler`）をウォッチドッグとして追加。無効化コミット直前に「N秒後に対象IDだけをactiveに戻す」EVENTを仕込み、正常復元が成功したら発火前に解除する。プロセスがkillされてもNode側と独立したMySQL内部のスレッドが数秒後に自動復旧する。EVENT作成自体に失敗した場合は安全策なしで実コミットに進まず例外を投げる。
+  - 両ファイルとも、互いの一時無効化期間が重ならないようMySQLの名前付きロック（`GET_LOCK`/`RELEASE_LOCK`、`orm_migration_last_admin_invariant_test`）でファイル全体の実行区間を相互排他する。
+  - `team-management`のdesign.md（PR #97）が「updateRole/updateStatusのシグネチャは一切変更しない」と明記していたため、この設計変更に合わせて注記を追記済み（後方互換な追加のため実質的な影響はない）。

@@ -1,7 +1,7 @@
-import { ResultSetHeader, RowDataPacket } from 'mysql2/promise';
-import { pool } from '../db/client';
+import { RowDataPacket } from 'mysql2/promise';
 import { prisma } from '../db/prismaClient';
 import type { UserModel } from '../generated/prisma/models/User';
+import type { Prisma } from '../generated/prisma/client';
 
 type CreateUserInput = {
   email: string;
@@ -111,7 +111,23 @@ export const AuthRepository = {
   // affectedRows >= 1 を得られるようにする。mysql2の既定設定
   // (非CLIENT_FOUND_ROWS)では、値が変化しない列のみのUPDATEは
   // affectedRows に数えられないため。
-  async updateRole(userId: number, newRole: UserRole): Promise<number> {
+  //
+  // task 3.2 (orm-migration) 設計変更: 末尾オプション引数 tx を追加。省略時
+  // (既存の全呼び出し元 = AdminUserService等)は従来通りモジュール単位の
+  // prisma シングルトンを使い、挙動・戻り値は一切変わらない。呼び出し元が
+  // prisma.$transaction(async (tx) => {...}) から得た tx を渡した場合のみ、
+  // この$executeRawをそのトランザクションの接続上で実行する。これは
+  // auth.repository.test.ts/auth.repository.concurrency.test.tsが「有効な
+  // 管理者が最低1人残る」不変条件を、実DBの本物の管理者アカウントを実コミット
+  // で一時的に無効化するのではなく、一度もコミットしないPrismaトランザクション
+  // 上で検証できるようにするため(design.md「設計変更（実装中に発見・承認済み）」
+  // 参照)。既存呼び出し元の契約(戻り値=影響行数)は変更しない。
+  async updateRole(
+    userId: number,
+    newRole: UserRole,
+    tx?: Prisma.TransactionClient
+  ): Promise<number> {
+    const client = tx ?? prisma;
     // 注意: design.mdのSQLサンプルは `EXISTS (SELECT 1 FROM users WHERE ...)` を
     // そのままUPDATE対象テーブル(users)に対するサブクエリとして書いているが、
     // MySQLは「UPDATEの対象テーブルをFROM句(のサブクエリ)で直接参照する」ことを
@@ -122,18 +138,28 @@ export const AuthRepository = {
     // 派生テーブル(FROM句のネストしたSELECT)でラップし、一旦マテリアライズさせる
     // ことで同テーブル直接参照の制約を回避する。判定内容(対象行基準・
     // 有効な他の管理者の存在確認)自体はdesign.mdの意図と同一で変更していない。
-    const [result] = await pool.query<ResultSetHeader>(
-      `UPDATE users
-       SET role = ?, updated_at = NOW()
-       WHERE id = ?
-         AND (? = 'admin' OR EXISTS (
-           SELECT 1 FROM (
-             SELECT id FROM users WHERE role = 'admin' AND status = 'active' AND id <> ?
-           ) AS other_active_admins
-         ))`,
-      [newRole, userId, newRole, userId]
-    );
-    return result.affectedRows;
+    //
+    // task 3.2 (orm-migration): この不変条件はcount→updateの2ステップに分解
+    // できないアトミックな条件付きUPDATEであり、Prismaのフルエントモデル
+    // API(update/updateMany)では表現できない(design.md/research.mdのBuild vs
+    // Adopt判断)。そのため`prisma.$executeRaw`のタグ付きテンプレートで既存と
+    // 同一のSQL文言をそのまま実行する。`${}`はPrismaがドライバアダプタ経由で
+    // 自動的にパラメータバインドする(文字列結合ではない)ため、SQLインジェクション
+    // の懸念はmysql2版の`?`プレースホルダと同等。戻り値はaffectedRowsそのもの
+    // (Promise<number>)。
+    // 注意: このSQL文はPrismaのスキーマ変更検知・型チェックの対象外。
+    // `users`テーブルのカラム名(role/status/id/updated_at)を変更する際は
+    // この生SQLも合わせて更新すること(design.md Risks節)。
+    return client.$executeRaw`
+      UPDATE users
+      SET role = ${newRole}, updated_at = NOW()
+      WHERE id = ${userId}
+        AND (${newRole} = 'admin' OR EXISTS (
+          SELECT 1 FROM (
+            SELECT id FROM users WHERE role = 'admin' AND status = 'active' AND id <> ${userId}
+          ) AS other_active_admins
+        ))
+    `;
   },
 
   // 対象(userId)のアカウント状態を newStatus に更新する。updateRole と同じ理由・
@@ -150,21 +176,31 @@ export const AuthRepository = {
   // updated_at = NOW() を明示的にSETに含めることで、status の値そのものが
   // 変化しない冪等な再送（例: 既にdisabledの行へ再度 newStatus='disabled' を
   // 送る）でも affectedRows >= 1 を得られるようにする（updateRole と同じ理由）。
-  async updateStatus(userId: number, newStatus: AccountStatus): Promise<number> {
+  //
+  // task 3.2 (orm-migration) 設計変更: updateRoleと同じ理由・同じ契約で末尾
+  // オプション引数 tx を追加する。省略時は既存通りprismaシングルトンを使う。
+  async updateStatus(
+    userId: number,
+    newStatus: AccountStatus,
+    tx?: Prisma.TransactionClient
+  ): Promise<number> {
+    const client = tx ?? prisma;
     // updateRole と同じMySQL 8.0の制約(ERROR 1093)を回避するため、EXISTSサブ
     // クエリを派生テーブルでラップしている。詳細はupdateRoleのコメント参照。
-    const [result] = await pool.query<ResultSetHeader>(
-      `UPDATE users
-       SET status = ?, updated_at = NOW()
-       WHERE id = ?
-         AND (? = 'active' OR EXISTS (
-           SELECT 1 FROM (
-             SELECT id FROM users WHERE role = 'admin' AND status = 'active' AND id <> ?
-           ) AS other_active_admins
-         ))`,
-      [newStatus, userId, newStatus, userId]
-    );
-    return result.affectedRows;
+    // task 3.2 (orm-migration): updateRoleと同じ理由でPrismaのフルエントAPIでは
+    // 表現できないため`prisma.$executeRaw`のタグ付きテンプレートで既存と同一の
+    // SQL文言をそのまま実行する。`users`テーブルのカラム名変更時はこの生SQLも
+    // 合わせて更新すること(design.md Risks節)。
+    return client.$executeRaw`
+      UPDATE users
+      SET status = ${newStatus}, updated_at = NOW()
+      WHERE id = ${userId}
+        AND (${newStatus} = 'active' OR EXISTS (
+          SELECT 1 FROM (
+            SELECT id FROM users WHERE role = 'admin' AND status = 'active' AND id <> ${userId}
+          ) AS other_active_admins
+        ))
+    `;
   },
 
   // Profile screen (profile-screen spec, ProfileService): 対象(userId)の表示名を

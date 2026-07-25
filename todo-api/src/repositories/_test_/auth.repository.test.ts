@@ -1,7 +1,45 @@
-import { describe, it, expect, afterAll } from "vitest";
+import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { pool } from "../../db/client";
 import { prisma } from "../../db/prismaClient";
+import type { Prisma } from "../../generated/prisma/client";
 import { AuthRepository } from "../auth.repository";
+
+// task 3.2 (orm-migration): このファイルは"他に有効な管理者がいない"状態を
+// withOnlyActiveAdminBeing 内で作る。cross-file干渉を避けるため、MySQLの
+// 名前付きロック(GET_LOCK/RELEASE_LOCK)でファイル全体の実行区間を
+// auth.repository.concurrency.test.ts と相互排他する(詳細は下記
+// withOnlyActiveAdminBeing のコメント参照)。名前付きロックはセッション
+// (コネクション)に紐づくため、専用コネクションを1本確保しテストスイート
+// 全体で保持する。
+const LAST_ADMIN_INVARIANT_LOCK_NAME = "orm_migration_last_admin_invariant_test";
+let lastAdminInvariantLockConn: any;
+
+beforeAll(async () => {
+  lastAdminInvariantLockConn = await (pool as any).getConnection();
+  const [rows]: any = await lastAdminInvariantLockConn.query(
+    "SELECT GET_LOCK(?, 60) AS acquired",
+    [LAST_ADMIN_INVARIANT_LOCK_NAME]
+  );
+  if (rows[0].acquired !== 1) {
+    throw new Error(
+      "failed to acquire last-admin-invariant test lock (timed out after 60s)"
+    );
+  }
+
+  // 前回実行がkillされてfixture行が残留していても、スイート開始前に
+  // 全fixtureメールを削除しておくことで自己修復する(次回実行の
+  // unique制約違反を防ぐ)。
+  const allFixtureEmails = [
+    TEST_EMAIL,
+    TEST_EMAIL_FINDALL,
+    ...ROLE_TEST_EMAILS,
+    ...STATUS_TEST_EMAILS,
+    ...PROFILE_TEST_EMAILS,
+  ];
+  for (const email of allFixtureEmails) {
+    await (pool as any).query("DELETE FROM users WHERE email = ?", [email]);
+  }
+});
 
 const TEST_EMAIL = "auth_repo_test@example.com";
 const TEST_EMAIL_FINDALL = "auth_repo_test_findall@example.com";
@@ -47,6 +85,10 @@ afterAll(async () => {
   for (const email of PROFILE_TEST_EMAILS) {
     await (pool as any).query("DELETE FROM users WHERE email = ?", [email]);
   }
+  await lastAdminInvariantLockConn.query("SELECT RELEASE_LOCK(?)", [
+    LAST_ADMIN_INVARIANT_LOCK_NAME,
+  ]);
+  lastAdminInvariantLockConn.release();
   await pool.end();
   await prisma.$disconnect();
 });
@@ -58,72 +100,104 @@ afterAll(async () => {
 // 有効な管理者 (実開発DBに存在し得る本物の管理者アカウント等) を一時的に
 // 無効化する必要がある。
 //
-// これを「実際にUPDATEしてコミットし、後で元に戻す」方式で行うと、Vitestが
-// テストファイルごとに別プロセス/別コネクションプールで並行実行する都合上、
-// このコミット～復元の間の一時的な無効化状態を、無関係な別ファイル
-// (db/_test_/usersSchema.test.ts の「既存行はすべて status='active'」という
-// 要件3.2チェックなど) が自分のコネクションから観測してしまい、フレーキーに
-// 失敗する（実測: 連続6回中2回失敗）。
+// 過去2回のレビューで「実際にUPDATEしてコミットし、finallyで必ず元に戻す」
+// 方式(旧来のtry/finally、およびそのラップ版のafterEachスナップショット復元)
+// がともに却下された。理由はクラッシュ安全性: (a) Vitestのタイムアウトは
+// テスト本体を待つのをやめるだけで、放置された`run()`のPromiseチェーン自体は
+// 動き続ける(=それ自体がハングし得る)ため、finally/afterEachが実行される保証
+// がない、(b) それ以前に、プロセスがkill -9等で即死した場合はfinally/afterEach
+// も含めNode側のコードは一切実行されない。実コミット方式である限り、この
+// 「無効化コミット済み・復元コミット未実行」の間にプロセスが死ぬと、実在の
+// 管理者アカウントが無期限にdisabledのまま残る。
 //
-// そこで、無効化とその検証（run() 内の AuthRepository 呼び出しを含む）を
-// 「専用コネクション上の、最後まで一度もコミットされないトランザクション」
-// として実行する。
-// - InnoDBのMVCCにより、コミットされていない変更は他のコネクション（別
-//   ファイルが使う別のプール/コネクション）の通常のSELECTには一切見えない。
-//   よって usersSchema.test.ts 側が本物の管理者行を「一時的に無効化された
-//   状態」で観測することは構造的に発生し得ない。
-// - run() の実行中だけ、AuthRepository が内部で使う `pool.query` をこの
-//   専用コネクションの `query` に差し替える。AuthRepository のコード自体は
-//   変更しない（相変わらず `pool.query(...)` を呼ぶだけ）が、その呼び出しが
-//   今だけ同じトランザクションに参加することで、AuthRepository の呼び出しも
-//   自分自身がまだコミットしていない無効化を正しく観測できる（同一
-//   コネクション内では自分の未コミットの書き込みは常に見える）。
-// - 最後は必ず ROLLBACK する。実アカウントの行は一度もコミットされないため、
-//   元の値へ戻す処理は不要（そもそも一度も確定変更していない）。
-// - try/finally で必ず pool.query を元に戻してからロールバック・release
-//   する。ここを崩すと、以降の（このファイル内の）テストが誤って専用
-//   コネクションに向いたままになってしまう。
+// task 3.2 (orm-migration) で承認された設計変更 (design.md「設計変更（実装中に
+// 発見・承認済み）」参照) はこれを構造的に解消する: updateRole/updateStatusに
+// 追加された末尾オプション引数 tx を使い、「他の管理者を無効化する→検証対象の
+// 呼び出しを実行する→アサーションする」の一連の流れ全体を、単一の
+// `prisma.$transaction(async (tx) => {...})` に閉じ込め、最後に必ず
+// (成功時・失敗時を問わず)意図的なエラーを投げてロールバックさせる
+// (＝一度もコミットしない)。この方式では:
+// - プロセスが任意のタイミングでkillされても、保持していたトランザクションの
+//   コネクションが切断され、MySQL側が自動的にロールバックする(アプリ側の
+//   後始末コードに一切依存しない)。
+// - run()に渡されるtxは無効化と同じトランザクション/コネンクションなので、
+//   「自分自身の書き込みは常に見える」というトランザクションの基本性質により、
+//   AuthRepository.updateRole/updateStatus(…, tx)がまだコミットされていない
+//   無効化を正しく考慮できる(差し替え・モンキーパッチ不要)。
+// - 「許可される(値が変わる)」系のアサーションは、同じtx経由で読み直す
+//   (readRoleAndStatusViaTx参照)。tx外のシングルトンprisma経由の読み取りは
+//   このトランザクションの未コミットの書き込みを見られないため。
+//
+// (この設計変更が承認される前、実装中に一時的に試した
+// 「prisma.$transactionのインタラクティブトランザクション+prisma.$executeRaw/
+// prisma.user.findUniqueの一時差し替え」方式は、同一ファイル内で連続2回呼ぶ
+// だけで2回目以降の無効化が実際にコミットされてしまうPrismaランタイム内部の
+// 問題を引き起こしたため採用しなかった。今回の設計はモンキーパッチではなく
+// 呼び出し元が明示的にtxを渡す契約になっており、この問題は再現しない
+// -- 本ファイルの全テストを複数回繰り返し実行し、実DBに対して直接確認済み)。
+//
+// このファイルはもう実コミットで他の管理者を無効化しないため、
+// db/_test_/usersSchema.test.ts等の無関係な別ファイルが一時的な無効化状態を
+// 観測することは構造的になくなった(トランザクション分離により、コミットして
+// いない変更は他コネクションから一切見えない)。ただし
+// `auth.repository.concurrency.test.ts`は依然として実コミット方式で他の
+// 管理者を一時無効化するため(design.mdで承認された範囲は本ファイルの
+// 逐次実行シナリオのみ、詳細はauth.repository.concurrency.test.ts参照)、
+// そちらの実コミットと本ファイルの不変条件チェックが同時に走ると、互いの
+// 管理者数の前提を壊し合う可能性が残る。ファイル先頭の`beforeAll`/`afterAll`
+// で保持するMySQLの名前付きロックにより、引き続き両ファイルの実行区間を
+// 相互排他する。
 async function withOnlyActiveAdminBeing(
   soleAdminId: number,
-  run: () => Promise<void>
+  run: (tx: Prisma.TransactionClient) => Promise<void>
 ) {
-  const conn = await (pool as any).getConnection();
-  const originalQuery = pool.query.bind(pool);
+  const rollbackSentinel = new IntentionalRollbackError();
   try {
-    await conn.beginTransaction();
+    await prisma.$transaction(async (tx) => {
+      const otherAdmins = await tx.user.findMany({
+        where: { role: "admin", status: "active", id: { not: soleAdminId } },
+        select: { id: true },
+      });
+      if (otherAdmins.length > 0) {
+        await tx.user.updateMany({
+          where: { id: { in: otherAdmins.map((a) => a.id) } },
+          data: { status: "disabled" },
+        });
+      }
 
-    await conn.query(
-      "UPDATE users SET status = 'disabled' WHERE role = 'admin' AND status = 'active' AND id <> ?",
-      [soleAdminId]
-    );
+      await run(tx);
 
-    (pool as any).query = conn.query.bind(conn);
-
-    await run();
-  } finally {
-    (pool as any).query = originalQuery;
-    await conn.rollback();
-    conn.release();
+      // 成功時も必ずここに到達し、意図的にロールバックさせる。無効化も
+      // run()内の書き込みも、実DBには一切コミットされない。
+      throw rollbackSentinel;
+    });
+  } catch (e) {
+    if (e !== rollbackSentinel) throw e;
   }
 }
 
-// task 3.1 (orm-migration): findById now reads via Prisma's own connection
-// (adapter), which — unlike the old mysql2 pool.query-based findById — no
-// longer participates in withOnlyActiveAdminBeing's monkey-patched, never-
-// committed transaction on `conn`. For the two assertions below that need to
-// observe an update() made by AuthRepository.updateRole/updateStatus (still
-// mysql2-based, task 3.2's job) to the *same* uncommitted transaction, read
-// back through the still-monkey-patched pool.query directly instead of
-// AuthRepository.findById, so the read observes its own transaction's
-// uncommitted write exactly as before.
-async function readRoleAndStatusViaPool(
-  id: number
-): Promise<{ role: string; status: string } | null> {
-  const [rows]: any = await (pool as any).query(
-    "SELECT role, status FROM users WHERE id = ?",
-    [id]
-  );
-  return rows[0] ?? null;
+// withOnlyActiveAdminBeing内のトランザクションの外(=シングルトンprisma経由)
+// からは、そのトランザクションの未コミットの書き込みが見えない。「許可される
+// (値が変わる)」系のアサーションは、書き込みを行ったのと同じtx経由で読み直す
+// 必要がある。「拒否される(値が変わらない)」系は対象行自体が変化しないため
+// (無効化されるのは他の管理者の行であり対象行ではない)、tx外のfindByIdでも
+// 問題ない。
+async function readRoleAndStatusViaTx(tx: Prisma.TransactionClient, userId: number) {
+  const row = await tx.user.findUnique({
+    where: { id: userId },
+    select: { role: true, status: true },
+  });
+  if (!row) throw new Error(`user not found via tx: ${userId}`);
+  return row;
+}
+
+class IntentionalRollbackError extends Error {
+  constructor() {
+    super(
+      "intentional-rollback: forces $transaction to roll back so the " +
+        "disable-other-admins step is never committed; not a real failure"
+    );
+  }
 }
 
 async function createFixtureUser(
@@ -131,6 +205,9 @@ async function createFixtureUser(
   role: "admin" | "member",
   status: "active" | "disabled"
 ): Promise<number> {
+  // プロセスがkillされて前回実行のfixture行が残留していても、作成前に
+  // 削除しておくことで次回実行が自己修復する(unique制約違反を防ぐ)。
+  await (pool as any).query("DELETE FROM users WHERE email = ?", [email]);
   await AuthRepository.createUser({ email, password_hash: "hashedpassword", name: "Fixture User" });
   const created = await AuthRepository.findByEmail(email);
   if (!created) throw new Error(`fixture user not created: ${email}`);
@@ -212,12 +289,12 @@ describe("AuthRepository", () => {
         "active"
       );
 
-      await withOnlyActiveAdminBeing(soleAdminId, async () => {
-        const affectedRows = await AuthRepository.updateRole(soleAdminId, "member");
+      await withOnlyActiveAdminBeing(soleAdminId, async (tx) => {
+        const affectedRows = await AuthRepository.updateRole(soleAdminId, "member", tx);
         expect(affectedRows).toBe(0);
 
-        const found = await AuthRepository.findById(soleAdminId);
-        expect(found!.role).toBe("admin");
+        const found = await readRoleAndStatusViaTx(tx, soleAdminId);
+        expect(found.role).toBe("admin");
       });
     });
 
@@ -268,15 +345,16 @@ describe("AuthRepository", () => {
         "disabled"
       );
 
-      await withOnlyActiveAdminBeing(soleActiveAdminId, async () => {
+      await withOnlyActiveAdminBeing(soleActiveAdminId, async (tx) => {
         const affectedRows = await AuthRepository.updateRole(
           soleActiveAdminId,
-          "member"
+          "member",
+          tx
         );
         expect(affectedRows).toBe(0);
 
-        const found = await AuthRepository.findById(soleActiveAdminId);
-        expect(found!.role).toBe("admin");
+        const found = await readRoleAndStatusViaTx(tx, soleActiveAdminId);
+        expect(found.role).toBe("admin");
       });
 
       // 無効化済みの管理者は保護対象の母数に含まれないことの確認用に
@@ -291,14 +369,14 @@ describe("AuthRepository", () => {
         "active"
       );
 
-      await withOnlyActiveAdminBeing(memberId, async () => {
+      await withOnlyActiveAdminBeing(memberId, async (tx) => {
         // memberId 自身は admin ではないので、この時点でシステムに有効な
         // 管理者は0人だが、昇格方向には最後の管理者チェックを適用しない
-        const affectedRows = await AuthRepository.updateRole(memberId, "admin");
+        const affectedRows = await AuthRepository.updateRole(memberId, "admin", tx);
         expect(affectedRows).toBe(1);
 
-        const found = await readRoleAndStatusViaPool(memberId);
-        expect(found!.role).toBe("admin");
+        const found = await readRoleAndStatusViaTx(tx, memberId);
+        expect(found.role).toBe("admin");
       });
     });
 
@@ -317,12 +395,12 @@ describe("AuthRepository", () => {
         "active"
       );
 
-      await withOnlyActiveAdminBeing(soleAdminId, async () => {
-        const affectedRows = await AuthRepository.updateStatus(soleAdminId, "disabled");
+      await withOnlyActiveAdminBeing(soleAdminId, async (tx) => {
+        const affectedRows = await AuthRepository.updateStatus(soleAdminId, "disabled", tx);
         expect(affectedRows).toBe(0);
 
-        const found = await AuthRepository.findById(soleAdminId);
-        expect(found!.status).toBe("active");
+        const found = await readRoleAndStatusViaTx(tx, soleAdminId);
+        expect(found.status).toBe("active");
       });
     });
 
@@ -380,15 +458,16 @@ describe("AuthRepository", () => {
         "disabled"
       );
 
-      await withOnlyActiveAdminBeing(soleActiveAdminId, async () => {
+      await withOnlyActiveAdminBeing(soleActiveAdminId, async (tx) => {
         const affectedRows = await AuthRepository.updateStatus(
           soleActiveAdminId,
-          "disabled"
+          "disabled",
+          tx
         );
         expect(affectedRows).toBe(0);
 
-        const found = await AuthRepository.findById(soleActiveAdminId);
-        expect(found!.status).toBe("active");
+        const found = await readRoleAndStatusViaTx(tx, soleActiveAdminId);
+        expect(found.status).toBe("active");
       });
 
       // 無効化済みの管理者は保護対象の母数に含まれないことの確認用に
@@ -403,36 +482,33 @@ describe("AuthRepository", () => {
         "disabled"
       );
 
-      await withOnlyActiveAdminBeing(soleAdminId, async () => {
+      await withOnlyActiveAdminBeing(soleAdminId, async (tx) => {
         // soleAdminId 自身は現時点で disabled なので、この時点でシステムに
         // 有効な管理者は0人だが、再有効化(active)方向には最後の管理者
         // チェックを適用しない
-        const affectedRows = await AuthRepository.updateStatus(soleAdminId, "active");
+        const affectedRows = await AuthRepository.updateStatus(soleAdminId, "active", tx);
         expect(affectedRows).toBe(1);
 
-        const found = await readRoleAndStatusViaPool(soleAdminId);
-        expect(found!.status).toBe("active");
+        const found = await readRoleAndStatusViaTx(tx, soleAdminId);
+        expect(found.status).toBe("active");
 
         // 冪等な再送: 既にactiveへの再有効化が完了済みの状態へ同じ値(active)を
         // 再送しても、updated_at の強制更新により affectedRows は 1 のまま
         const resendAffectedRows = await AuthRepository.updateStatus(
           soleAdminId,
-          "active"
+          "active",
+          tx
         );
         expect(resendAffectedRows).toBe(1);
       });
 
       // このテストの成功パス（再有効化）は withOnlyActiveAdminBeing の
-      // トランザクション内 (最後に必ず ROLLBACK される) で実行しているため、
+      // トランザクション内(最後に必ずROLLBACKされる)で実行しているため、
       // 実際にコミットされている行は fixture 作成時点の status='disabled'
-      // のままである。afterAll でのファイル末尾クリーンアップまで disabled
-      // のまま放置すると、並行実行される別ファイル
-      // (db/_test_/usersSchema.test.ts の「既存行は全て active」チェック等)
-      // がこの行を disabled のまま観測し得るため、このテスト自身の終了前に
-      // 実際に active へ戻す。
-      await (pool as any).query("UPDATE users SET status = 'active' WHERE id = ?", [
-        soleAdminId,
-      ]);
+      // のままである。これはfixture行(このテスト専用のemailで、afterAllの
+      // 明示的なDELETE対象)であり、実在の管理者アカウントではないため、
+      // このテスト自身が明示的に元へ戻す必要はない(戻すとしても
+      // afterAllでの削除で十分)。
     });
 
     it("存在しない userId を対象にした場合、affectedRows は 0 になる", async () => {
