@@ -69,6 +69,7 @@
   - _Depends: 1.4_
 
 - [ ] 3.2 updateRole/updateStatusの不変条件維持移行
+  - _Blocked: SQL移行自体(prisma.$executeRaw化)は2回のレビューで承認済みだが、テストのクラッシュ安全性を巡って2回REJECTED。根本原因はMySQLの仕様上「未コミットの他コネクションの変更は見えない」ため、プロセスkillでも自動ロールバックされる安全な設計にするには、テストコードがAuthRepository.updateRole/updateStatusと同じPrisma接続(トランザクション)上で呼び出す必要がある。しかし現在の公開シグネチャにはトランザッションクライアントを渡す手段がなく、design.mdのBoundary Commitmentsが「公開メソッドシグネチャ・戻り値の形を変更しない」ことを明記し、変更时は3つの下流spec(team-management/task-status-model/task-assignment)の再検証をRevalidation Triggerとして要求している。human判断が必要。_
   - `updateRole`/`updateStatus`を、既存と同一のSQL文（対象行(id)基準の単一UPDATE、派生テーブルでラップしたEXISTSサブクエリによる「対象ユーザー以外に有効な管理者が1人以上いる」判定）のまま`prisma.$executeRaw`（タグ付きテンプレート、パラメータバインド）で実行するよう置き換える
   - `updated_at = NOW()`を明示的にSETに含める既存の冪等性保証（値が変化しない再送でも影響行数1以上を返す）を維持する
   - 戻り値として影響行数（既存の`affectedRows`相当の数値）を返す
