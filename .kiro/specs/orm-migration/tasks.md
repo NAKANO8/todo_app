@@ -1,0 +1,139 @@
+# Implementation Plan
+
+- [ ] 1. Foundation: Prisma基盤整備
+- [x] 1.1 Prisma導入と接続設定の確立
+  - `todo-api/package.json`に`prisma`(devDependencies)と`@prisma/client`(dependencies)を`^7.8.0`で追加する
+  - `prisma init`のスキャフォールド出力を確認し、Prisma 7.8.0でのMySQL接続方式（ドライバアダプタの要否・パッケージ名）を確定する
+  - `DATABASE_URL`環境変数を`.env.dev`・本番環境変数・CI環境変数に追加する（既存の`DB_HOST`/`DB_USER`/`DB_PASSWORD`/`DB_NAME`/`DB_PORT`から組み立てた接続文字列）
+  - 観測可能な完了状態: `npx prisma validate`がエラーなく完了する
+  - _Requirements: 1.1_
+
+- [x] 1.2 schema.prismaへのモデル・enum定義
+  - `prisma/schema.prisma`に`datasource`（provider: mysql, url: env("DATABASE_URL")）と`generator client`を定義する
+  - `User`モデルを定義する（id, email, password_hash, role, status, created_at, updated_at, name。既存の型・NULL制約・デフォルト値・UNIQUE制約を保持し、`@@map("users")`で物理テーブル名を維持する）
+  - `Todo`モデルを定義する（id, user_id, title, status, created_at, updated_at、`User`への`@relation(onDelete: Cascade)`、`@@map("todos")`）
+  - `UserRole`（admin/member）・`AccountStatus`（active/disabled）のenumを定義する
+  - 観測可能な完了状態: `npx prisma generate`が成功し、`User`/`Todo`/`UserRole`/`AccountStatus`の型が生成される
+  - _Requirements: 1.1, 1.2, 1.3_
+
+- [x] 1.3 ベースラインマイグレーションの作成
+  - `prisma/migrations/0_init/migration.sql`を作成し、DDLが`mysql/init.sql`と同一の構造（カラム・制約・デフォルト値・外部キー）になっていることを確認する
+  - 新規の空DBに対して`prisma migrate deploy`を実行し、`mysql/init.sql`適用後と同一のテーブル構造が得られることを確認する
+  - 観測可能な完了状態: 空のMySQLコンテナに対し`prisma migrate deploy`を実行した結果、`SHOW CREATE TABLE users`/`SHOW CREATE TABLE todos`の出力が既存スキーマと一致する
+  - _Requirements: 1.4, 4.1_
+
+- [x] 1.4 PrismaClientシングルトンの実装
+  - `todo-api/src/db/prismaClient.ts`を新規作成し、モジュール読み込み時に`PrismaClient`を1度だけインスタンス化してexportする（`db/client.ts`の`pool`と同じ初期化パターン）
+  - `dotenv`による`.env`読み込みを既存の`db/client.ts`と同じ規約で行う
+  - 観測可能な完了状態: `prismaClient.ts`をimportした最小スクリプトが`prisma.$connect()`に成功する
+  - _Requirements: 2.1, 3.1_
+
+- [ ] 2. (P) Todoデータアクセス移行
+  - `todos.repository.ts`のみを対象とするドメインであり、3.（`auth.repository.ts`）とはファイル・境界が重複しないため並行実施可能。ただし2.1〜2.3は同一ファイルを編集するため内部は順次実施する
+- [x] 2.1 Todo参照系メソッドのPrisma化
+  - `TodoRepository.findAll(userId)`を`prisma.todo.findMany({ where: { userId } })`相当に置き換える
+  - `TodoRepository.findById(id, userId)`を`prisma.todo.findFirst({ where: { id, userId } })`相当に置き換え、非該当時は`null`を返す
+  - 公開メソッドシグネチャ・戻り値の型（`Todo[]`/`Todo | null`）を変更しない
+  - 観測可能な完了状態: 既存の`TodoService.getAll`/`getById`がコード変更なしに動作する
+  - _Requirements: 2.1, 2.2, 2.7_
+  - _Boundary: TodoRepository_
+  - _Depends: 1.4_
+
+- [x] 2.2 Todo更新系メソッドのPrisma化
+  - `TodoRepository.create(title, userId, status)`を`prisma.todo.create(...)`相当に置き換える
+  - `TodoRepository.update(id, userId, data)`を、指定された`title`/`status`のみを更新する`prisma.todo.updateMany({ where: { id, userId }, data: {...} })`相当に置き換え、指定フィールドが0件の場合はDB呼び出しを行わない早期returnを維持する
+  - `TodoRepository.delete(id, userId)`を`prisma.todo.deleteMany({ where: { id, userId } })`相当に置き換える
+  - 全メソッドで`userId`条件を必ず含め、他ユーザーのTodoを操作させない
+  - 観測可能な完了状態: 指定フィールドなしの`update`呼び出し後にDBへの書き込みクエリが発行されないことをテストで確認できる
+  - _Requirements: 2.3, 2.4, 2.5, 2.6, 2.7_
+  - _Boundary: TodoRepository_
+
+- [x] 2.3 Todoリポジトリテストの検証
+  - `todo-api/src/repositories/_test_/todos.repository.test.ts`のfixture準備・後始末（`pool.query`呼び出し）をPrisma Client呼び出しに最小限差し替える
+  - create→findAll、findById、update、deleteの既存アサーションが移行前と同じ結果になることを確認する
+  - 観測可能な完了状態: `pnpm --filter todo-api test todos.repository`が全て合格する
+  - _Requirements: 2.1, 2.2, 2.3, 2.4, 2.5, 2.6, 5.1, 5.4_
+  - _Boundary: TodoRepository_
+  - _Depends: 2.1, 2.2_
+
+- [ ] 3. (P) 認証・ユーザー管理データアクセス移行
+  - `auth.repository.ts`のみを対象とするドメインであり、2.（`todos.repository.ts`）とはファイル・境界が重複しないため並行実施可能。ただし3.1〜3.3は同一ファイルを編集するため内部は順次実施する
+- [x] 3.1 Auth標準CRUDメソッドのPrisma化
+  - `findByEmail`（password_hashを含む全カラム取得）、`findById`（password_hash除外）、`findAll`（password_hash除外の一覧）を`prisma.user.findUnique`/`findMany`相当に置き換える
+  - `createUser`を`prisma.user.create(...)`相当に置き換える
+  - `updateName`（表示名更新）、`findPasswordHashById`（password_hashのみ取得）、`updatePasswordHash`（password_hash更新）を`prisma.user.update`/`findUnique`相当に置き換える
+  - 既存の`User`/`UserSummary`/`UserRole`/`AccountStatus`型定義とexportを維持する
+  - 観測可能な完了状態: `AuthService.login`/`register`/`me`、`ProfileService.updateName`/`changePassword`がコード変更なしに動作する
+  - _Requirements: 3.1, 3.2, 3.3, 3.4, 3.10, 3.11, 3.12_
+  - _Boundary: AuthRepository_
+  - _Depends: 1.4_
+
+- [x] 3.2 updateRole/updateStatusの不変条件維持移行
+  - `updateRole`/`updateStatus`を、既存と同一のSQL文（対象行(id)基準の単一UPDATE、派生テーブルでラップしたEXISTSサブクエリによる「対象ユーザー以外に有効な管理者が1人以上いる」判定）のまま`prisma.$executeRaw`（タグ付きテンプレート、パラメータバインド）で実行するよう置き換える
+  - `updated_at = NOW()`を明示的にSETに含める既存の冪等性保証（値が変化しない再送でも影響行数1以上を返す）を維持する
+  - 戻り値として影響行数（既存の`affectedRows`相当の数値）を返す
+  - 観測可能な完了状態: 唯一の有効な管理者に対する降格・無効化要求で影響行数0が返り、`AdminUserService`側で409エラーとして判別できる
+  - _Requirements: 3.5, 3.6, 3.7, 3.8, 3.9_
+  - _Boundary: AuthRepository_
+
+- [ ] 3.3 Authリポジトリテストの検証
+  - `auth.repository.test.ts`・`auth.repository.concurrency.test.ts`のfixture準備・後始末をPrisma Client呼び出しに最小限差し替える
+  - 「唯一の有効な管理者」への降格・無効化拒否、冪等な再送、並行更新時の不変条件に関する既存アサーションが移行前と同じ結果になることを確認する
+  - 観測可能な完了状態: `pnpm --filter todo-api test auth.repository`が全て合格する
+  - _Requirements: 3.1, 3.2, 3.3, 3.4, 3.5, 3.6, 3.7, 3.8, 3.9, 3.10, 3.11, 3.12, 5.1, 5.2, 5.4_
+  - _Boundary: AuthRepository_
+  - _Depends: 3.1, 3.2_
+
+- [ ] 4. Integration: マイグレーション運用のCI/Docker組み込み
+- [ ] 4.1 CIワークフローのスキーマ適用手順置き換え
+  - `.github/workflows/ci.yml`の`mysql -h ... < mysql/init.sql`ステップを`pnpm --filter todo-api exec prisma migrate deploy`に置き換える
+  - CI環境変数に`DATABASE_URL`を追加する
+  - 観測可能な完了状態: CI上で`prisma migrate deploy`実行後、既存のVitestスイート（`pnpm test`）が全て合格する
+  - _Requirements: 4.1, 4.2, 4.3, 5.4_
+  - _Depends: 1.3_
+
+- [ ] 4.2 Docker起動シーケンスへのマイグレーション適用組み込み
+  - `todo-api/Dockerfile`の`CMD`を、`prisma migrate deploy`実行後にアプリを起動する順序に変更する（失敗時はアプリを起動しない）
+  - `docker-compose.dev.yml`の`api.command`を、`prisma migrate deploy`実行後に`pnpm run dev`を起動する順序に変更する
+  - 観測可能な完了状態: `pnpm docker:dev`起動時にコンテナログでマイグレーション適用（またはno-op）の後にアプリが起動することを確認できる
+  - _Requirements: 4.3, 4.4_
+  - _Depends: 1.3_
+
+- [ ] 4.3 既存永続化ボリュームのベースライン化
+  - 既存のdev/prod DBボリューム（`db-data-dev`/`db-data`）に対し、`prisma migrate resolve --applied 0_init`を1回実行してベースラインマイグレーションを「適用済み」として記録する手順を確立し、実行する
+  - この手順をマイグレーション運用ドキュメント（`prisma/migrations/`近傍またはREADME等）に記録する
+  - 観測可能な完了状態: ベースライン化実行後の既存dev DBボリュームに対し`prisma migrate deploy`が「pending migrations: none」で正常終了する
+  - _Requirements: 4.4_
+  - _Depends: 4.2_
+
+- [ ] 5. Validation: 非回帰確認とクリーンアップ
+- [ ] 5.1 全体非回帰検証
+  - `pnpm --filter todo-api test`（Vitest全体）と`pnpm --filter todo-api build`（型チェック）が合格することを確認する
+  - `SessionRepository`/`sessionRepositoryInstance.ts`にコード差分がないことを確認する
+  - APIレスポンス形式・`AppError`のエラーハンドリング挙動・認可ロジックに変更がないことを、既存のservices/controllers配下のテストが無修正で合格することにより確認する
+  - 観測可能な完了状態: `pnpm --filter todo-api test`と`pnpm --filter todo-api build`が両方とも成功終了する
+  - _Requirements: 5.1, 5.2, 5.3, 5.4, 5.5_
+
+- [ ] 5.2 mysql2依存の後片付け
+  - 全リポジトリのPrisma移行完了を確認した上で、`todo-api/src/db/client.ts`（`mysql2` pool）を削除する
+  - `todo-api/package.json`から`mysql2`依存を削除する
+  - `mysql/init.sql`の取り扱い（削除するか、参考用に残置するか）を決定し反映する
+  - 観測可能な完了状態: `todo-api/src/db/client.ts`を参照するimportがコードベースに存在せず、`pnpm --filter todo-api build`が成功する
+  - _Requirements: 1.4, 4.1_
+  - _Depends: 5.1_
+
+## Implementation Notes
+- (1.1) Prisma 7.xはMySQL/MariaDBに対して`PrismaClient`インスタンス化時にドライバアダプタを必須とする（`new PrismaClient()`のみでは`"PrismaClient requires a driver adapter"`で例外）。アダプタは`@prisma/adapter-mariadb` + `mariadb`パッケージ。task 1.4（PrismaClientシングルトン実装）はこれをインストールし、アダプタ経由でインスタンス化すること。
+- (1.1) Prisma 7.9の実際のスキャフォールドでは、`schema.prisma`の`datasource`ブロックに`url`を書かず、`prisma.config.ts`（`@prisma/config`の`datasource.url`）側でDATABASE_URLを解決する。task 1.2でschema.prismaにモデルを追加する際も、この構成（datasourceブロックにurlなし）をそのまま踏襲すること。
+- (1.2) `created_at`/`updated_at`は実DB・init.sqlともにNOT NULL制約なし（nullable）。`DateTime?`が正しい。design.mdのサマリー表の省略表記と紛らわしいが矛盾ではない。
+- (1.2) task 1.3向けの注意（レビューで発見）: `prisma migrate diff --from-empty --to-schema`の生出力は実スキーマと3点ズレる。(a) collation: Prisma出力は`utf8mb4_unicode_ci`だが実DBは`utf8mb4_0900_ai_ci`、(b) 制約名: Prisma出力は`users_email_key`/`todos_user_id_fkey`だが実DBは`email`/`todos_ibfk_1`、(c) `updated_at`のON UPDATE CURRENT_TIMESTAMPが生出力に反映されずFKに不要な`ON UPDATE CASCADE`が付く。task 1.3は生成物をそのまま使わず、`mysql/init.sql`と一致するよう`migration.sql`を手動編集すること（task 1.3の記述通り）。
+- (1.3) 上記3点に加え、4点目を発見: `ADD FOREIGN KEY`で制約名を明示すると、MySQLは支援インデックス名も同じ名前にしてしまう（実DBは無名FKで自動生成された`todos_ibfk_1`/`user_id`という別名になる）。制約名を明示せずMySQLに自動命名させることで再現した。空DBへの`prisma migrate deploy`と`mysql/init.sql`適用結果の`SHOW CREATE TABLE`が完全一致することを別ポートの使い捨てコンテナで2回（実装者・レビュアー独立に）確認済み。
+- (2.1-2.2) `auth.repository.concurrency.test.ts`は本specと無関係な既存の実DB並行性テストで、フルスイート実行時に稀にタイムアウトでフレークする（単独実行・再実行では常にpass）。tasks 1.4/2.1/2.2で複数回観測済み。以降のタスクでこれが単発で落ちても、このテスト自体に変更がなければ本specの回帰ではない。
+- (2.2) 「書き込みが発行されないこと」の証明にはreal DBでは絶対の否定を示せないため、`vi.spyOn`（call-through、`mockRestore`で即座に復元）を1アサーションだけに限定して使用。他の全テストは既存通り実DBに対して実行しており、mock化の拡大ではない。
+- (2.3) フルスイート実行時のみ、本specと無関係なファイル（`auth.repository.concurrency`/`usersSchema`等、実行のたびに異なる組み合わせ）で「Deadlock found」「Test timed out」が散発する。これは実MySQLコンテナへの並列接続数がこのサンドボックス環境のリソースに対して多すぎることが原因と考えられ、Prisma移行前から存在した既存の問題（`auth.repository.concurrency`は task 1.4時点で既にフレーク観測済み）。各リポジトリテストを単体実行すると常に100%成功する。以降のタスクでも、フルスイートで無関係なファイルが落ちた場合は単体実行での再現有無を確認すること。vitest.config.tsの並列度設定見直しはorm-migration specのスコープ外。
+- (3.1) `findById`（Prisma、独立コネクション）は、`updateRole`/`updateStatus`（mysql2、task 3.2でまだ未移行）がテスト内でモンキーパッチしたコミット前トランザクションの書き込みを見えなくする。「許可される（値が変わる）」系の2アサーションのみ、`pool`経由で直接読む`readRoleAndStatusViaPool`ヘルパーに切り替えて対処。「拒否される（値が変わらない）」系はコミット済み状態を見るだけなので`findById`のままで問題ない。task 3.2でupdateRole/updateStatusも移行した後、3.3でこのワークアラウンドの要否を再確認すること。
+- (3.2) この移行は最も難航したタスク。SQL自体（`$executeRaw`化）は一度で承認されたが、「唯一の有効な管理者」不変条件を検証するテストの安全性で2回REJECTEDされ、実DBの本物の管理者アカウントが無効化されたまま残留する事故を2回実際に起こして復旧した。根本原因はMySQLの「未コミットの変更は他コネクションから見えない」という仕様。最終的に以下の非対称な解決に至った:
+  - **単一リクエストのテスト**（`auth.repository.test.ts`）: `AuthRepository.updateRole`/`updateStatus`に末尾オプション引数`tx?: Prisma.TransactionClient`を追加（design.md承認済み、省略時は既存呼び出し元と完全互換）。「他の管理者を無効化→検証対象呼び出し→アサーション」全体を一度もコミットしない`prisma.$transaction`に閉じ込め、最後に意図的にロールバックさせる。プロセスがkillされてもMySQLが自動ロールバックするためアプリ側の後始末コード不要。kill -9を複数回実施し実証済み。
+  - **本物の同時実行テスト**（`auth.repository.concurrency.test.ts`）: 未コミットトランザクション方式は使えない（2つの独立したコネクションが競合する様子を再現するには、一方の変更がもう一方から見える=コミット済みである必要があるため、原理的に矛盾する）。実コミットで一時無効化する既存方式を維持しつつ、MySQLネイティブの一回限りEVENT（`event_scheduler`）をウォッチドッグとして追加。無効化コミット直前に「N秒後に対象IDだけをactiveに戻す」EVENTを仕込み、正常復元が成功したら発火前に解除する。プロセスがkillされてもNode側と独立したMySQL内部のスレッドが数秒後に自動復旧する。EVENT作成自体に失敗した場合は安全策なしで実コミットに進まず例外を投げる。
+  - 両ファイルとも、互いの一時無効化期間が重ならないようMySQLの名前付きロック（`GET_LOCK`/`RELEASE_LOCK`、`orm_migration_last_admin_invariant_test`）でファイル全体の実行区間を相互排他する。
+  - `team-management`のdesign.md（PR #97）が「updateRole/updateStatusのシグネチャは一切変更しない」と明記していたため、この設計変更に合わせて注記を追記済み（後方互換な追加のため実質的な影響はない）。
