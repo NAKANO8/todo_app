@@ -320,7 +320,7 @@ interface GroupRepositoryContract {
 - `UserRole`型を`'admin' | 'member' | 'group_leader'`に拡張する
 - `updateGroup(userId, groupId)`: `prisma.user.updateMany({ where: { id: userId }, data: { groupId } })`相当。影響行数を返す（`updateRole`/`updateStatus`と同じ契約形。ただし「有効な管理者が最低1人残る」のような不変条件チェックは伴わない — グループ変更は管理者資格に影響しないため）
 - `findByGroupId(groupId)`: `prisma.user.findMany({ where: { groupId }, select: { id, email, role, status, name } })`相当。`password_hash`を含まない（既存`findAll`と同じ列選択方針）
-- 既存の`findByEmail`/`findById`/`findAll`/`createUser`/`updateRole`/`updateStatus`/`updateName`/`findPasswordHashById`/`updatePasswordHash`のシグネチャ・挙動・不変条件は一切変更しない
+- 既存の`findByEmail`/`findById`/`findAll`/`createUser`/`updateRole`/`updateStatus`/`updateName`/`findPasswordHashById`/`updatePasswordHash`の挙動・不変条件は一切変更しない。`updateRole`/`updateStatus`は`orm-migration`実装中に末尾へオプション引数`tx?: Prisma.TransactionClient`が追加されたが、省略時（本specを含む全既存呼び出し元）の挙動は変わらない後方互換の追加であり、本specの前提に影響しない
 
 **Dependencies**
 - Inbound: AdminUserService, GroupLeaderService, GroupLeaderOnlyGuard (P0)
