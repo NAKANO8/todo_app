@@ -18,7 +18,7 @@
   "keywords": [],
   "author": "",
   "license": "MIT",
-  "packageManager": "pnpm@11.1.2",
+  "packageManager": "pnpm@12.18.0",
   "pnpm": {
     "overrides": {
       "vite": "^7.3.5",
