@@ -12,13 +12,12 @@ export const AuthController = {
     try {
       const user = await AuthService.login(req.body);
       req.session.userId = user.id;
-      if (req.body.rememberMe) {
+      if (req.body.rememberMe == true && req.session.cookie) {
         // sessionの有効期限は14日間
         const fourteenDaysInMs = 14 * 24 * 60 * 60 * 1000;
         req.session.cookie.maxAge = fourteenDaysInMs;
-      } else {
-        req.session.cookie.maxAge = undefined;
       }
+
       await getSessionRepository().trackSession(user.id, req.session.sessionId);
       return reply.send({ message: 'login success' });
     } catch (err) {
