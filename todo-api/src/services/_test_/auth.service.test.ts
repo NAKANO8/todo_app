@@ -67,7 +67,7 @@ describe("AuthService.login", () => {
 
     const result = await AuthService.login({ email: "active@example.com", password: "correct-password" });
 
-    expect(result).toEqual(user);
+    expect(result).toEqual({ user, maxAge: undefined });
   });
 
   it("再有効化されたアカウント(status=active)は正しいパスワードで通常通りログインできる", async () => {
@@ -83,7 +83,7 @@ describe("AuthService.login", () => {
 
     const result = await AuthService.login({ email: "re-enabled@example.com", password: "correct-password" });
 
-    expect(result).toEqual(reEnabledUser);
+    expect(result).toEqual({ user: reEnabledUser, maxAge: undefined });
   });
 });
 

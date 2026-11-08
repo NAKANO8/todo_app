@@ -6,16 +6,15 @@ import { getSessionRepository } from "../repositories/sessionRepositoryInstance"
 
 export const AuthController = {
   async login(
-    req: FastifyRequest<{ Body: LoginBody }>,
+    req: FastifyRequest<{ Body: LoginBody & { rememberMe?: boolean } }>,
     reply: FastifyReply
   ) {
     try {
-      const user = await AuthService.login(req.body);
+      const { user, maxAge } = await AuthService.login(req.body);
       req.session.userId = user.id;
-      if (req.body.rememberMe == true && req.session.cookie) {
-        // sessionの有効期限は14日間
-        const fourteenDaysInMs = 14 * 24 * 60 * 60 * 1000;
-        req.session.cookie.maxAge = fourteenDaysInMs;
+
+      if (maxAge !== undefined && req.session.cookie) {
+        req.session.cookie.maxAge = maxAge;
       }
 
       await getSessionRepository().trackSession(user.id, req.session.sessionId);
