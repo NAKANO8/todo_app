@@ -10,6 +10,7 @@ export type Todo = {
 export type LoginBody = {
   email: string;
   password: string;
+  rememberMe?: boolean;
 };
 
 export type RegisterBody = LoginBody & {

@@ -4,7 +4,7 @@ import bcrypt from "bcrypt";
 import { AppError } from "../errors/AppError";
 
 export const AuthService = {
-  async login({ email, password }: LoginBody) {
+  async login({ email, password, rememberMe }: LoginBody & { rememberMe?: boolean }) {
     const user = await AuthRepository.findByEmail(email);
 
     if (!user) {
@@ -26,7 +26,9 @@ export const AuthService = {
       throw new AppError('account disabled', 403);
     }
 
-    return user;
+    const maxAge = rememberMe === true ? 14 * 24 * 60 * 60 * 1000 : undefined;
+
+    return { user, maxAge };
   },
 
   async register({ email, password, name }: RegisterBody) {

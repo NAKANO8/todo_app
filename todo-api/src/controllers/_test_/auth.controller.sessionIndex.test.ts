@@ -15,7 +15,10 @@ import { initSessionRepository } from "../../repositories/sessionRepositoryInsta
 // 実際の索引の状態変化を検証する。
 vi.mock("../../services/auth.service", () => ({
   AuthService: {
-    login: vi.fn().mockResolvedValue({ id: 42, email: "test@example.com" }),
+    login: vi.fn().mockResolvedValue({
+      user: { id: 42, email: "test@example.com" },
+      maxAge: undefined,
+    }),
   },
 }));
 

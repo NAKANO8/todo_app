@@ -26,6 +26,7 @@ const loginBodySchema = {
   properties: {
     email: { type: "string", format: "email", maxLength: 255 },
     password: passwordFieldSchema,
+    rememberMe: { type: "boolean" },
   },
   // Also prevents unexpected fields like `role` from being smuggled in. Note: Fastify 5's
   // default AJV config sets removeAdditional: true, so unknown fields are silently

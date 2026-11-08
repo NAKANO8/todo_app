@@ -67,7 +67,7 @@ describe("AuthService.login", () => {
 
     const result = await AuthService.login({ email: "active@example.com", password: "correct-password" });
 
-    expect(result).toEqual(user);
+    expect(result).toEqual({ user, maxAge: undefined });
   });
 
   it("再有効化されたアカウント(status=active)は正しいパスワードで通常通りログインできる", async () => {
@@ -83,7 +83,28 @@ describe("AuthService.login", () => {
 
     const result = await AuthService.login({ email: "re-enabled@example.com", password: "correct-password" });
 
-    expect(result).toEqual(reEnabledUser);
+    expect(result).toEqual({ user: reEnabledUser, maxAge: undefined });
+  });
+
+  it("rememberMeをtrueにしてログインすると、14日間のmaxAgeが計算されて返る", async () => {
+    const user = {
+      id: 2,
+      email: "active@example.com",
+      password_hash: "hashed",
+      role: "member",
+      status: "active",
+    };
+    (AuthRepository.findByEmail as any).mockResolvedValue(user);
+    (bcrypt.compare as any).mockResolvedValue(true);
+
+    const result = await AuthService.login({
+      email: "active@example.com",
+      password: "correct-password",
+      rememberMe: true
+    });
+
+    const expectedMaxAge = 14 * 24 * 60 * 60 * 1000;
+    expect(result).toEqual({ user, maxAge: expectedMaxAge });
   });
 });
 

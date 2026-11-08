@@ -30,8 +30,8 @@
 //   - destroy(sessionId, callback): 該当キーをRedisから削除し、完了したら `callback(null)` を呼ぶ。
 //     破棄後の `get` は上記の「セッションなし」の挙動を返す。
 // 3メソッドとも例外を投げず、必ずNode形式のコールバック（第1引数にエラー、成功時は`null`）で
-// 結果を返す。キー命名は `<prefix><sessionId>` の単純な文字列結合とし、有効期限（TTL）は
-// このクラスでは設定しない。
+// 結果を返す。キー命名は `<prefix><sessionId>` の単純な文字列結合とする。
+//  ログイン情報を保存するという機能を実現するためTTLは14日間に設定する。
 
 import type * as fastifyRedis from "@fastify/redis";
 import type { Session } from "fastify";
@@ -79,10 +79,24 @@ export class RedisSessionStore {
     session: Session,
     callback: (err: Error | null) => void
   ): void {
-    this.client
-      .set(this.key(sessionId), JSON.stringify(session))
-      .then(() => callback(null))
-      .catch((err: Error) => callback(err));
+    const key = this.key(sessionId);
+    const value = JSON.stringify(session);
+
+    const maxAgeMs = session.cookie?.maxAge;
+
+    if (maxAgeMs && maxAgeMs > 0) {
+      const ttlSeconds = Math.floor(maxAgeMs / 1000);
+
+      this.client
+        .set(key, value, "EX", ttlSeconds)
+        .then(() => callback(null))
+        .catch((err: Error) => callback(err));
+    } else {
+      this.client
+        .set(key, value)
+        .then(() => callback(null))
+        .catch((err: Error) => callback(err));
+    }
   }
 
   destroy(sessionId: string, callback: (err: Error | null) => void): void {
