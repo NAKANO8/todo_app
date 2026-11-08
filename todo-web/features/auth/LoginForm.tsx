@@ -8,25 +8,54 @@ type Props = {
   mode: "login" | "register";
 };
 
+const API_BASE = process.env.NEXT_PUBLIC_API_BASE || "http://localhost:3001";
+
 export default function LoginForm({ mode = "login" }: Props) {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [errors, setErrors] = useState<{ name?: string; email?: string; password?: string }>({});
+  const [rememberMe, setRememberMe] = useState(false);
 
-  const action = mode === "login" ? "/api/auth/login" : "/api/auth/register";
+  const endpoint = mode === "login" ? "/auth/login" : "/auth/register";
+  const action = `${API_BASE}${endpoint}`;
   const title = mode === "login" ? "ログイン" : "新規登録";
 
-  const handleSubmit = (e: React.SubmitEvent<HTMLFormElement>) => {
+  const handleSubmit = async (e: React.SubmitEvent<HTMLFormElement>) => {
     e.preventDefault();
     const nameError = mode === "register" ? validateName(name) : null;
     const emailError = validateEmail(email);
     const passwordError = validatePassword(password);
+
     if (nameError || emailError || passwordError) {
       setErrors({ name: nameError ?? undefined, email: emailError ?? undefined, password: passwordError ?? undefined });
       return;
     }
-    e.currentTarget.submit();
+
+    try {
+      const res = await fetch(action, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({
+          email,
+          password,
+          ...(mode === "register" ? { name } : {}),
+          ...(mode === "login" ? { rememberMe } : {}),
+        }),
+      });
+
+      if (!res.ok) {
+        const text = await res.text();
+        const data = text ? JSON.parse(text) : { message: '不明なエラーが発生しました' };
+        console.error(data.message);
+        return;
+      }
+
+      window.location.href = "/todos";
+    } catch (err) {
+      console.error("Login/Register failed:", err)
+    }
   };
 
   return (
@@ -87,6 +116,19 @@ export default function LoginForm({ mode = "login" }: Props) {
                 {errors.password && <p className={styles.errorMsg}>{errors.password}</p>}
               </div>
             </div>
+
+            {mode == "login" && (
+              <div>
+                <input
+                  type="checkbox"
+                  id="rememberMe"
+                  name="rememberMe"
+                  checked={rememberMe}
+                  onChange={(e) => setRememberMe(e.target.checked)}
+                />
+                <label htmlFor="rememberMe">ログイン情報を保存する</label>
+              </div>
+            )}
 
             <button type="submit" className={styles.submitBtn} style={{ marginTop: "8px" }}>
               {title}
