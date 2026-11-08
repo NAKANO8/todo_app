@@ -117,4 +117,80 @@ describe("LoginForm", () => {
       expect(screen.queryByPlaceholderText("表示名")).not.toBeInTheDocument();
     });
   });
+
+  describe("rememberMe feature", () => {
+    it("「ログイン情報を保存する」チェックボックスが初期状態で未チェックで表示される", () => {
+      render(<LoginForm mode="login" />);
+      const checkbox = screen.getByRole("checkbox", { name: "ログイン情報を保存する" });
+      expect(checkbox).toBeInTheDocument();
+      expect(checkbox).not.toBeChecked();
+    });
+
+    it("チェックを入れてログインすると、rememberMe: true が送信されること", async () => {
+      const user = userEvent.setup();
+
+      const mockFetch = vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({}),
+      });
+      vi.stubGlobal("fetch", mockFetch);
+
+      render(<LoginForm mode="login" />);
+
+      await user.type(screen.getByPlaceholderText("メールアドレス"), "test@example.com");
+      await user.type(screen.getByPlaceholderText("パスワード"), "Password1");
+
+      // チェックボックスをオンにする
+      const checkbox = screen.getByRole("checkbox", { name: "ログイン情報を保存する" });
+      await user.click(checkbox);
+      expect(checkbox).toBeChecked();
+
+      // ログインボタンを押す
+      await user.click(screen.getByRole("button", { name: "ログイン" }));
+
+      // 正しく rememberMe: true が送られているか検証
+      expect(mockFetch).toHaveBeenCalledWith(
+        expect.stringContaining("/auth/login"),
+        expect.objectContaining({
+          method: "POST",
+          body: JSON.stringify({
+            email: "test@example.com",
+            password: "Password1",
+            rememberMe: true,
+          }),
+        })
+      );
+    });
+
+    it("チェックを入れずにログインすると、rememberMe: false が送信されること", async () => {
+      const user = userEvent.setup();
+
+      const mockFetch = vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({}),
+      });
+      vi.stubGlobal("fetch", mockFetch);
+
+      render(<LoginForm mode="login" />);
+
+      await user.type(screen.getByPlaceholderText("メールアドレス"), "test@example.com");
+      await user.type(screen.getByPlaceholderText("パスワード"), "Password1");
+
+      // チェックを入れずにそのまま送信
+      await user.click(screen.getByRole("button", { name: "ログイン" }));
+
+      // rememberMe: false（または未チェック状態）で送られているか検証
+      expect(mockFetch).toHaveBeenCalledWith(
+        expect.stringContaining("/auth/login"),
+        expect.objectContaining({
+          method: "POST",
+          body: JSON.stringify({
+            email: "test@example.com",
+            password: "Password1",
+            rememberMe: false,
+          }),
+        })
+      );
+    });
+  });
 });
