@@ -85,6 +85,27 @@ describe("AuthService.login", () => {
 
     expect(result).toEqual({ user: reEnabledUser, maxAge: undefined });
   });
+
+  it("rememberMeをtrueにしてログインすると、14日間のmaxAgeが計算されて返る", async () => {
+    const user = {
+      id: 2,
+      email: "active@example.com",
+      password_hash: "hashed",
+      role: "member",
+      status: "active",
+    };
+    (AuthRepository.findByEmail as any).mockResolvedValue(user);
+    (bcrypt.compare as any).mockResolvedValue(true);
+
+    const result = await AuthService.login({
+      email: "active@example.com",
+      password: "correct-password",
+      rememberMe: true
+    });
+
+    const expectedMaxAge = 14 * 24 * 60 * 60 * 1000;
+    expect(result).toEqual({ user, maxAge: expectedMaxAge });
+  });
 });
 
 // Requirement 3.1/3.2/3.3: name は登録リクエストの必須項目としてルート層(AJVスキーマ)で
